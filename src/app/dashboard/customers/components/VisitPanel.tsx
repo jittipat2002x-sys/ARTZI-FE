@@ -1,0 +1,709 @@
+import React, { useState } from 'react';
+import { Customer } from '@/services/customer.service';
+import { useBranding } from '@/contexts/branding-context';
+import { BrandButton } from '@/components/ui/brand-button';
+import { BrandInput } from '@/components/ui/brand-input';
+import { useCreateVisit } from '../hooks/useVisits';
+import { authService } from '@/services/auth.service';
+import { PetOpdHistory } from './PetOpdHistory';
+import { PetMedicineSelector, SelectedMedication } from './PetMedicineSelector';
+import { ThaiDateInput } from '@/components/ui/thai-date-input';
+import { BrandTextarea } from '@/components/ui/brand-textarea';
+import { Dog, ShoppingCart, Calendar, CheckCircle2 } from 'lucide-react';
+import { Modal, AlertModal } from '@/components/ui/modal';
+import { cn } from '@/lib/utils';
+import { VisitSuccessModal } from './VisitSuccessModal';
+import { PrintLabelModal } from './PrintLabelModal';
+import { PrintInvoiceModal } from './PrintInvoiceModal';
+import { PrintAppointmentModal } from './PrintAppointmentModal';
+import { appointmentService, Appointment } from '@/services/appointment.service';
+import { visitService, Visit } from '@/services/visit.service';
+
+interface VisitPanelProps {
+  customer: Customer;
+  linkedAppointments?: Appointment[];
+  onClose: () => void;
+}
+
+export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanelProps) {
+  const { brandColor } = useBranding();
+  const createVisitMutation = useCreateVisit();
+  const user = authService.getUser();
+  
+  const [selectedPets, setSelectedPets] = React.useState<string[]>(() => {
+    if (linkedAppointments && linkedAppointments.length > 0) {
+      return Array.from(new Set(linkedAppointments.map(a => a.petId)));
+    }
+    return [];
+  });
+
+  const [petRecords, setPetRecords] = useState<Record<string, any>>(() => {
+    const initial: Record<string, any> = {};
+    if (linkedAppointments && linkedAppointments.length > 0) {
+      linkedAppointments.forEach(app => {
+        if (!initial[app.petId]) {
+          initial[app.petId] = {
+            petId: app.petId,
+            vetId: app.vetId || user?.id || '',
+            weightAtVisit: 0,
+            temperature: 0,
+            symptoms: app.reason || '',
+            diagnosis: '',
+            treatment: '',
+            notes: '',
+            medications: [],
+            nextAppointmentDate: '',
+            nextAppointmentTime: '09:00',
+            nextAppointmentReason: '',
+            appointmentIds: [app.id]
+          };
+        } else {
+          // If multiple appointments for the same pet in the linked group
+          if (!initial[app.petId].appointmentIds.includes(app.id)) {
+            initial[app.petId].appointmentIds.push(app.id);
+          }
+          // Combine reasons if multiple
+          if (app.reason && !initial[app.petId].symptoms.includes(app.reason)) {
+            initial[app.petId].symptoms += (initial[app.petId].symptoms ? ', ' : '') + app.reason;
+          }
+        }
+      });
+    }
+    return initial;
+  });
+  const [generalItems, setGeneralItems] = useState<SelectedMedication[]>([]);
+  
+  // Success & Print States
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [createdVisit, setCreatedVisit] = useState<any>(null);
+  
+  const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
+  const [isInvoicePrintOpen, setIsInvoicePrintOpen] = useState(false);
+  const [isApptPrintOpen, setIsApptPrintOpen] = useState(false);
+  const [selectedPetIdForAppt, setSelectedPetIdForAppt] = useState<string | null>(null);
+  
+  const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    type: 'danger' | 'warning' | 'info' | 'success';
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    type: 'info',
+  });
+  
+  // Calculate total
+  const petMedsTotal = Object.values(petRecords).reduce((acc, record) => {
+    const meds = record.medications || [];
+    return acc + meds.reduce((sum: number, med: SelectedMedication) => sum + (med.unitPrice * med.quantity), 0);
+  }, 0);
+  
+  const generalTotal = generalItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+  const grandTotal = petMedsTotal + generalTotal;
+
+  const handlePetToggle = (petId: string) => {
+    if (selectedPets.includes(petId)) {
+      setSelectedPets(prev => prev.filter(id => id !== petId));
+      const newRecords = { ...petRecords };
+      delete newRecords[petId];
+      setPetRecords(newRecords);
+    } else {
+      setSelectedPets(prev => [...prev, petId]);
+      
+      // Try to restore appointmentIds if this pet was in the linked appointments
+      const linkedForThisPet = linkedAppointments 
+        ? linkedAppointments.filter(a => a.petId === petId).map(a => a.id)
+        : [];
+      const linkedSymptoms = linkedAppointments
+        ? Array.from(new Set(linkedAppointments.filter(a => a.petId === petId).map(a => a.reason))).filter(Boolean).join(', ')
+        : '';
+
+      setPetRecords(prev => ({
+        ...prev,
+        [petId]: {
+          petId,
+          vetId: user?.id || '',
+          weightAtVisit: 0,
+          temperature: 0,
+          symptoms: linkedSymptoms,
+          diagnosis: '',
+          treatment: '',
+          notes: '',
+          medications: [],
+          nextAppointmentDate: '',
+          nextAppointmentTime: '09:00',
+          nextAppointmentReason: '',
+          appointmentIds: linkedForThisPet,
+        }
+      }));
+    }
+  };
+
+  const updatePetRecord = (petId: string, field: string, value: any) => {
+    setPetRecords(prev => ({
+      ...prev,
+      [petId]: {
+        ...prev[petId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (selectedPets.length === 0) {
+      setAlertConfig({
+        isOpen: true,
+        title: 'คำแนะนำ',
+        description: 'กรุณาเลือกสัตว์เลี้ยงอย่างน้อย 1 ตัว',
+        type: 'warning'
+      });
+      return;
+    }
+    setIsConfirmSaveOpen(true);
+  };
+
+  const handleSaveVisit = async () => {
+    try {
+      if (!user?.id || !user?.branches?.[0]?.branchId) {
+        setAlertConfig({
+          isOpen: true,
+          title: 'ข้อผิดพลาด',
+          description: 'ไม่พบข้อมูลสาขา หรือ เซสชันหมดอายุ',
+          type: 'danger'
+        });
+        return;
+      }
+      
+      const currentUser = authService.getUser();
+      const recordsToCreate = Object.values(petRecords).map(record => {
+        let finalApptDate = record.nextAppointmentDate;
+        if (finalApptDate && record.nextAppointmentTime) {
+          // Parse YYYY-MM-DD safely even if it's an ISO string (split by T first)
+          const datePart = finalApptDate.includes('T') ? finalApptDate.split('T')[0] : finalApptDate;
+          const [year, month, day] = datePart.split('-').map(Number);
+          const [h, m] = record.nextAppointmentTime.split(':').map(Number);
+          const d = new Date(year, month - 1, day, h, m);
+          finalApptDate = d.toISOString();
+        }
+
+        const { nextAppointmentTime: _, appointmentIds, ...rest } = record;
+        const apptDateToSend = finalApptDate && finalApptDate.trim() !== '' ? finalApptDate : null;
+        
+        return {
+          ...rest,
+          appointmentIds,
+          nextAppointmentDate: apptDateToSend as any,
+          vetId: record.vetId === 'REPLACE_WITH_USER_ID' || !record.vetId ? (currentUser?.id || '') : record.vetId,
+          medications: (record.medications || []).map((med: any) => ({
+            inventoryId: med.inventoryId,
+            inventoryName: med.inventoryName,
+            quantity: med.quantity,
+            unitPrice: med.unitPrice,
+            usageInstructions: med.usageInstructions || ''
+          }))
+        };
+      });
+      
+      const result = await createVisitMutation.mutateAsync({
+        customerId: customer.id,
+        branchId: currentUser?.branches?.[0]?.branchId || '',
+        medicalRecords: recordsToCreate as any,
+        generalItems: generalItems.map(item => ({
+          productId: item.inventoryId,
+          name: item.inventoryName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        })),
+        discount: 0,
+      });
+      
+      const visitData = (result as any)?.data || result;
+      setCreatedVisit(visitData);
+      setIsSuccessOpen(true);
+      // Don't call onClose() yet, wait for success modal
+    } catch (error) {
+      console.error('Failed to create visit:', error);
+      setAlertConfig({
+        isOpen: true,
+        title: 'เกิดข้อผิดพลาด',
+        description: 'ไม่พบข้อมูลสาขา หรือ เซสชันหมดอายุ',
+        type: 'danger'
+      });
+    }
+  };
+
+  return (
+    <>
+      <div className="p-6 bg-white dark:bg-gray-800 rounded-b-xl border-t border-gray-100 dark:border-gray-700 shadow-inner">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
+          สร้างรายการเข้ารักษาใหม่
+        </h3>
+        <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-600">ปิด</button>
+      </div>
+
+      {/* Select Pets */}
+      <div className="mb-6">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">เลือกสัตว์เลี้ยงที่เข้ารับการรักษา:</label>
+        <div className="flex flex-wrap gap-3">
+          {customer.pets?.map((pet: any) => (
+            <button
+              key={pet.id}
+              onClick={() => handlePetToggle(pet.id!)}
+              className="px-4 py-2 rounded-xl text-sm font-semibold transition-all border flex items-center gap-2"
+              style={selectedPets.includes(pet.id!) ? {
+                backgroundColor: brandColor + '15',
+                borderColor: brandColor,
+                color: brandColor
+              } : {
+                backgroundColor: 'transparent',
+                borderColor: '#e5e7eb',
+                color: '#6b7280'
+              }}
+            >
+              <Dog size={16} /> {pet.name}
+            </button>
+          ))}
+          {!customer.pets?.length && <p className="text-xs text-red-500">ไม่พบสัตว์เลี้ยงสำหรับลูกค้านี้</p>}
+        </div>
+      </div>
+
+      {/* Pet Forms */}
+      <div className="space-y-8">
+        {selectedPets.map(petId => {
+          const pet: any = customer.pets?.find((p: any) => p.id === petId);
+          const record = petRecords[petId];
+          return (
+            <div key={petId} className="p-5 border border-gray-200 dark:border-gray-700 rounded-xl space-y-4 relative">
+              <h4 className="font-bold text-gray-800 dark:text-gray-200" style={{ color: brandColor }}>{pet?.name} <span className="text-xs font-normal text-gray-500 ml-2">({pet?.species})</span></h4>
+              
+              <PetOpdHistory petId={petId} />
+
+              <div className="grid grid-cols-2 gap-4">
+                 <BrandInput 
+                  label="น้ำหนัก (กก.)" 
+                  type="number"
+                  value={record.weightAtVisit}
+                  onChange={e => updatePetRecord(petId, 'weightAtVisit', parseFloat(e.target.value))}
+                 />
+                 <BrandInput 
+                  label="อุณหภูมิ (°C)" 
+                  type="number"
+                  value={record.temperature}
+                  onChange={e => updatePetRecord(petId, 'temperature', parseFloat(e.target.value))}
+                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <BrandTextarea
+                  label="อาการเบื้องต้น (Symptoms)"
+                  rows={2}
+                  value={record.symptoms}
+                  onChange={e => updatePetRecord(petId, 'symptoms', e.target.value)}
+                />
+                <BrandTextarea
+                  label="ผลการวินิจฉัย (Diagnosis)"
+                  rows={2}
+                  value={record.diagnosis}
+                  onChange={e => updatePetRecord(petId, 'diagnosis', e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <BrandTextarea
+                  label="แผนการรักษา (Treatment Plan)"
+                  rows={2}
+                  value={record.treatment}
+                  onChange={e => updatePetRecord(petId, 'treatment', e.target.value)}
+                />
+              </div>
+
+              {/* Next Appointment Section */}
+              <div 
+                className="p-4 border rounded-xl space-y-3"
+                style={{ 
+                  backgroundColor: brandColor + '08',
+                  borderColor: brandColor + '20' 
+                }}
+              >
+                <h5 className="text-xs font-bold flex items-center gap-2" style={{ color: brandColor }}>
+                  <Calendar size={14} /> นัดหมายครั้งถัดไป (Optional)
+                </h5>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <ThaiDateInput 
+                      label="วันที่นัดหมาย"
+                      value={record.nextAppointmentDate}
+                      onChange={value => updatePetRecord(petId, 'nextAppointmentDate', value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <BrandInput 
+                      label="เวลา"
+                      type="time"
+                      value={record.nextAppointmentTime}
+                      onChange={e => updatePetRecord(petId, 'nextAppointmentTime', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <BrandInput 
+                      label="สาเหตุการนัด"
+                      placeholder="เช่น นัดดูอาการ, ฉีดวัคซีนเข็ม 2"
+                      value={record.nextAppointmentReason}
+                      onChange={e => updatePetRecord(petId, 'nextAppointmentReason', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <PetMedicineSelector 
+                    selectedItems={record.medications || []}
+                    onChange={(items) => updatePetRecord(petId, 'medications', items)}
+                    petName={pet?.name}
+                    customerName={`${customer.firstName} ${customer.lastName}`}
+                  />
+                </div>
+
+            </div>
+          );
+        })}
+      </div>
+
+      {/* General Items Section */}
+      <div className="mt-8 p-5 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+        <h4 className="font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+          <ShoppingCart size={18} /> สินค้าทั่วไป (ไม่ได้เจาะจงสัตว์)
+        </h4>
+        <PetMedicineSelector 
+          selectedItems={generalItems}
+          onChange={setGeneralItems}
+          customerName={`${customer.firstName} ${customer.lastName}`}
+        />
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-6 py-4 rounded-xl border border-blue-100 dark:border-blue-800/50 flex flex-col gap-1 items-end min-w-64">
+          <span className="text-sm">รวมค่ายาและบริการ (สัตว์เลี้ยง): ฿{petMedsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          <span className="text-sm">รวมค่าสินค้าทั่วไป: ฿{generalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          <div className="h-px bg-blue-200 dark:bg-blue-800 my-1 w-full" />
+          <span className="text-lg font-bold">ยอดรวมสุทธิ: ฿{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+        </div>
+      </div>
+
+      <div className="mt-8 flex justify-end gap-3">
+        <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200">
+          ยกเลิก
+        </button>
+        <BrandButton 
+          onClick={handleSubmit} 
+          disabled={createVisitMutation.isPending || selectedPets.length === 0}
+        >
+          {createVisitMutation.isPending ? 'กำลังบันทึก...' : 'บันทึกการเข้ารักษา'}
+        </BrandButton>
+      </div>
+
+    </div>
+
+      {/* Success Modal */}
+      {createdVisit && (
+        <VisitSuccessModal 
+          isOpen={isSuccessOpen}
+          onClose={onClose}
+          visitData={createdVisit}
+          customerName={`${customer.firstName} ${customer.lastName}`}
+          onPrintLabels={() => setIsLabelPrintOpen(true)}
+          onPrintInvoice={() => setIsInvoicePrintOpen(true)}
+          onPrintAppointment={(petId) => {
+            setSelectedPetIdForAppt(petId);
+            setIsApptPrintOpen(true);
+          }}
+        />
+      )}
+
+      {/* Print Label Modal */}
+      {createdVisit && isLabelPrintOpen && (
+        <PrintLabelModal 
+          isOpen={isLabelPrintOpen}
+          onClose={() => setIsLabelPrintOpen(false)}
+          petName={createdVisit.medicalRecords?.map((r: any) => r.pet?.name).join(', ') || ''}
+          customerName={`${customer.firstName} ${customer.lastName}`}
+          items={createdVisit.medicalRecords?.flatMap((r: any) => 
+            (r.medications || []).map((m: any) => ({
+              name: m.inventory?.name,
+              quantity: m.quantity,
+              usageInstructions: m.dosage || ''
+            }))
+          ) || []}
+        />
+      )}
+
+      {/* Print Invoice Modal */}
+      {createdVisit?.invoice && isInvoicePrintOpen && (
+        <PrintInvoiceModal 
+          isOpen={isInvoicePrintOpen}
+          onClose={() => setIsInvoicePrintOpen(false)}
+          customerName={`${customer.firstName} ${customer.lastName}`}
+          petNames={createdVisit.medicalRecords?.map((r: any) => r.pet?.name).join(', ') || ''}
+          invoiceDate={new Date(createdVisit.invoice.createdAt).toLocaleDateString('th-TH')}
+          invoiceNumber={createdVisit.invoice.id.slice(0, 8).toUpperCase()}
+          items={createdVisit.invoice.items.map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice
+          }))}
+          totalAmount={createdVisit.invoice.totalAmount}
+          discount={createdVisit.invoice.discount}
+          netAmount={createdVisit.invoice.netAmount}
+          paymentMethod={createdVisit.invoice.paymentMethod}
+        />
+      )}
+
+      {/* Print Appointment Modal */}
+      {createdVisit && isApptPrintOpen && selectedPetIdForAppt && (
+        <PrintAppointmentModal 
+          isOpen={isApptPrintOpen}
+          onClose={() => {
+            setIsApptPrintOpen(false);
+            setSelectedPetIdForAppt(null);
+          }}
+          customerName={`${customer.firstName} ${customer.lastName}`}
+          petName={createdVisit.medicalRecords?.find((r: any) => r.petId === selectedPetIdForAppt)?.pet?.name || ''}
+          appointmentDate={(() => {
+            const recordWithAppt = createdVisit.medicalRecords?.find((r: any) => r.petId === selectedPetIdForAppt);
+            return recordWithAppt?.nextAppointmentDate ? new Date(recordWithAppt.nextAppointmentDate).toLocaleString('th-TH', { 
+                year: 'numeric', month: 'long', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit' 
+              }) : 'N/A';
+          })()}
+          reason={createdVisit.medicalRecords?.find((r: any) => r.petId === selectedPetIdForAppt)?.nextAppointmentReason || 'Follow-up'}
+        />
+      )}
+
+      {/* Confirm Save Modal */}
+      <AlertModal 
+        isOpen={isConfirmSaveOpen}
+        onClose={() => setIsConfirmSaveOpen(false)}
+        onConfirm={() => {
+          setIsConfirmSaveOpen(false);
+          handleSaveVisit();
+        }}
+        type="info"
+        title="ยืนยันการบันทึก"
+        description="คุณต้องการบันทึกข้อมูลการเข้ารักษาในครั้งนี้ใช่หรือไม่?"
+        confirmText="บันทึกข้อมูล"
+        cancelText="ตรวจสอบอีกครั้ง"
+        loading={createVisitMutation.isPending}
+      />
+
+      {/* General Alert Modal */}
+      <AlertModal 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        title={alertConfig.title}
+        description={alertConfig.description}
+        type={alertConfig.type}
+        confirmText="ตกลง"
+      />
+    </>
+  );
+}
+
+// ==========================================
+// Read-Only Modal for Completed Appointments
+// ==========================================
+
+interface CompletedVisitDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  group: any; // GroupedAppointment from AppointmentsPage
+}
+
+export function CompletedVisitDetailsModal({ isOpen, onClose, group }: CompletedVisitDetailsModalProps) {
+  const { brandColor } = useBranding();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [visits, setVisits] = useState<Visit[]>([]);
+
+  React.useEffect(() => {
+    if (isOpen && group) {
+      loadVisits();
+    }
+  }, [isOpen, group]);
+
+  const loadVisits = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const appointmentId = group.originalAppointments?.[0]?.id;
+      const data = await visitService.getVisits(group.customer.id, group.date, appointmentId);
+      if (Array.isArray(data)) {
+        setVisits(data);
+      } else {
+        setVisits([]);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || 'ไม่สามารถโหลดข้อมูลประวัติการรักษาได้');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      className="sm:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <CheckCircle2 size={24} style={{ color: brandColor }} />
+            รายละเอียดการรักษา
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            เจ้าของ: {group.customer.firstName} {group.customer.lastName} | วันที่: {new Date(group.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}
+          </p>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-gray-900/10 space-y-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: brandColor }} />
+          </div>
+        ) : error ? (
+          <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center">
+            {error}
+          </div>
+        ) : visits.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+            <Calendar size={48} className="mx-auto mb-4 opacity-20" />
+            <p className="font-bold text-gray-700 dark:text-gray-300">ไม่พบประวัติการรักษา (OPD)</p>
+            <p className="text-sm mt-2 max-w-sm mx-auto">นัดหมายนี้อาจถูกปรับสถานะเป็น "เสร็จสิ้น" โดยตรง โดยไม่ได้ทำการบันทึกเวชระเบียน</p>
+            
+            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 max-w-md mx-auto text-left px-6 text-xs">
+               <h4 className="font-bold text-gray-400 uppercase mb-3 text-[10px] tracking-wider">ข้อมูลจากการนัดหมาย:</h4>
+               {group.originalAppointments.map((app: any) => (
+                 <div key={app.id} className="flex gap-3 mb-2 items-start bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-50 dark:border-gray-700">
+                   <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg"><Dog size={16} className="text-gray-400" /></div>
+                   <div>
+                     <p className="font-bold text-gray-800 dark:text-gray-200">{app.pet?.name}</p>
+                     <p className="text-gray-500 mt-0.5">เหตุผล: {app.reason || '-'}</p>
+                   </div>
+                 </div>
+               ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {visits.map((visit, index) => (
+              <div key={visit.id} className="space-y-4">
+                <div className="flex items-center gap-3">
+                   <div className="h-px flex-1 bg-gray-100 dark:bg-gray-700" />
+                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-3 py-1 bg-gray-50 dark:bg-gray-800 rounded-full">รอบที่ {index + 1}</span>
+                   <div className="h-px flex-1 bg-gray-100 dark:bg-gray-700" />
+                </div>
+
+                {visit.medicalRecords?.map((record: any) => (
+                  <div key={record.id} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="bg-gray-50/50 dark:bg-gray-800/50 p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-white dark:bg-gray-900 p-2 rounded-xl shadow-sm"><Dog size={24} style={{ color: brandColor }} /></div>
+                        <div>
+                           <h3 className="font-bold text-gray-900 dark:text-gray-100">{record.pet?.name}</h3>
+                           <p className="text-xs text-gray-500 font-medium">สัตวแพทย์: {record.vet?.firstName} {record.vet?.lastName || ''}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-6 text-xs text-gray-500">
+                        <div className="text-center">
+                          <p className="font-bold text-gray-900 dark:text-gray-200">
+                            {record.weightAtVisit || record.pet?.weight || '-'} kg
+                          </p>
+                          <p className="scale-90 opacity-70">น้ำหนัก</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-bold text-gray-900 dark:text-gray-200">{record.temperature || '-'} °C</p>
+                          <p className="scale-90 opacity-70">อุณหภูมิ</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                          { title: "อาการเบื้องต้น", value: record.symptoms },
+                          { title: "การวินิจฉัย", value: record.diagnosis },
+                          { title: "แผนการรักษา", value: record.treatment }
+                        ].map((sec, i) => (
+                          <div key={i} className="space-y-1.5">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">{sec.title}</h4>
+                            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl text-sm text-gray-700 dark:text-gray-300 min-h-[60px]">
+                               {sec.value || '-'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {record.medications && record.medications.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1 mb-3">รายการยาและสินค้า</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {record.medications.map((med: any) => (
+                              <div key={med.id} className="flex justify-between items-start p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-xs hover:border-brand/30 transition-colors gap-4">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-bold text-gray-900 dark:text-gray-100">{med.inventory?.name || med.inventoryName || med.name}</p>
+                                  <p className="text-gray-500 mt-1 leading-relaxed break-words">{med.dosage || med.usageInstructions || '-'}</p>
+                                </div>
+                                <div className="text-right whitespace-nowrap pt-0.5">
+                                  <span className="font-bold text-brand" style={{ color: brandColor }}>x{med.quantity}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {/* Invoice Summary */}
+            {visits[0]?.invoice && (
+              <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <ShoppingCart size={18} className="text-blue-500" />
+                    สรุปค่าใช้จ่าย
+                  </h4>
+                </div>
+                <div className="flex justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <span className="text-sm text-gray-500 font-medium">ยอดชำระสุทธิ</span>
+                  <span className="text-xl font-black text-gray-900 dark:text-white" style={{ color: brandColor }}>
+                    ฿{visits[0].invoice.netAmount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex justify-center bg-gray-50/50 dark:bg-gray-800/50">
+        <BrandButton onClick={onClose} className="px-12 rounded-full">
+          ปิดหน้าต่าง
+        </BrandButton>
+      </div>
+    </Modal>
+  );
+}
