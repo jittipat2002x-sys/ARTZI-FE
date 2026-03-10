@@ -107,49 +107,52 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     link.href = logoUrl || '/heart-icon.png';
   }, [pathname, tenantName, logoUrl]);
 
-  function applyBrandColor(color: string) {
+  const adjustColor = (hex: string, amount: number): string => {
+    try {
+      const num = parseInt(hex.replace('#', ''), 16);
+      const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+      const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+      const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+      return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
+    } catch {
+      return hex;
+    }
+  };
+
+  const applyBrandColor = React.useCallback((color: string) => {
     document.documentElement.style.setProperty('--color-brand', color);
-    // Generate a slightly darker hover color
     const hoverColor = adjustColor(color, -15);
     document.documentElement.style.setProperty('--color-brand-hover', hoverColor);
-  }
+  }, []);
 
-  function adjustColor(hex: string, amount: number): string {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const r = Math.min(255, Math.max(0, (num >> 16) + amount));
-    const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
-    const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
-    return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
-  }
+  const saveBranding = React.useCallback((color: string, logo: string | null) => {
+    localStorage.setItem('branding', JSON.stringify({ brandColor: color, logoUrl: logo }));
+  }, []);
 
-  function setBrandColor(color: string) {
+  const setBrandColor = React.useCallback((color: string) => {
     setBrandColorState(color);
     applyBrandColor(color);
     saveBranding(color, logoUrl);
-  }
+  }, [logoUrl, applyBrandColor, saveBranding]);
 
-  function setLogoUrl(url: string | null) {
+  const setLogoUrl = React.useCallback((url: string | null) => {
     setLogoUrlState(url);
     saveBranding(brandColor, url);
-  }
+  }, [brandColor, saveBranding]);
 
-  function saveBranding(color: string, logo: string | null) {
-    localStorage.setItem('branding', JSON.stringify({ brandColor: color, logoUrl: logo }));
-  }
-
-  function updateBranding(color: string, logo: string | null) {
+  const updateBranding = React.useCallback((color: string, logo: string | null) => {
     setBrandColorState(color);
     setLogoUrlState(logo);
     applyBrandColor(color);
     saveBranding(color, logo);
-  }
+  }, [applyBrandColor, saveBranding]);
 
-  function resetBranding() {
+  const resetBranding = React.useCallback(() => {
     setBrandColorState(DEFAULT_BRAND_COLOR);
     setLogoUrlState(null);
     applyBrandColor(DEFAULT_BRAND_COLOR);
     localStorage.removeItem('branding');
-  }
+  }, [applyBrandColor]);
 
   return (
     <BrandingContext.Provider value={{ brandColor, logoUrl, tenantName, branchName, isInitialLoading, setBrandColor, setLogoUrl, updateBranding, resetBranding }}>

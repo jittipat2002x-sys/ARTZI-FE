@@ -20,6 +20,7 @@ export default function BrandingPage() {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasFetchedRef = useRef(false);
 
   // Sync local state when context values change (e.g. after background sync)
   useEffect(() => {
@@ -48,6 +49,8 @@ export default function BrandingPage() {
       }
     };
 
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     syncFromServer();
   }, [setBrandColor, setLogoUrl]);
 
