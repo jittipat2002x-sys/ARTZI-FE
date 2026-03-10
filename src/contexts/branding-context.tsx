@@ -41,7 +41,19 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const [branchName, setBranchName] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  const { data: serverBranding, isLoading: isSyncing } = useBrandingSync();
+  const [hasTenant, setHasTenant] = useState(false);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.tenantId) setHasTenant(true);
+      } catch {}
+    }
+  }, []);
+
+  const { data: serverBranding, isLoading: isSyncing } = useBrandingSync(hasTenant);
 
   // Load initial branding from localStorage on mount
   useEffect(() => {

@@ -38,6 +38,11 @@ export const useBrandingSync = (enabled: boolean = true) => {
         },
         enabled: enabled,
         staleTime: 30 * 60 * 1000, // 30 minutes
+        retry: (failureCount, error: any) => {
+            // Don't retry on 403 Forbidden or 401 Unauthorized
+            if (error?.message?.includes('403') || error?.message?.includes('401')) return false;
+            return failureCount < 2;
+        }
     });
 };
 
