@@ -1,6 +1,6 @@
 import { authService } from './auth.service';
 
-const API_BASE = 'http://localhost:3100/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3100/api';
 
 function getHeaders() {
     const token = authService.getToken();

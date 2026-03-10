@@ -15,7 +15,7 @@ export const MEDICINE_TYPE_OPTIONS = [
     { id: 'PILL', name: 'แบบเม็ด' },
 ];
 
-const API_BASE = 'http://localhost:3100/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3100/api';
 
 function getHeaders() {
     const token = authService.getToken();

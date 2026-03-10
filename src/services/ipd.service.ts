@@ -47,7 +47,7 @@ export interface Admission {
 
 class IpdService {
     private get baseUrl() {
-        return 'http://localhost:3100/api';
+        return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3100/api';
     }
 
     private get headers() {
