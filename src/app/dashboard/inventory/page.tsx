@@ -16,12 +16,10 @@ import { DataTable, Column } from '@/components/ui/data-table';
 
 export default function InventoryPage() {
   const [inventories, setInventories] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string>('');
   const [type, setType] = useState<string>('');
   const [medicineType, setMedicineType] = useState<string>('');
   const [search, setSearch] = useState<string>('');
-  const [branches, setBranches] = useState<any[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -49,18 +47,15 @@ export default function InventoryPage() {
   const { data: user } = useAuthMe();
   const { data: serverBranches = [] } = useBranches(1, 100, user?.role === 'OWNER' || user?.role === 'SAAS_ADMIN');
 
-  useEffect(() => {
-    if (user) {
-      if (user.role === 'OWNER' || user.role === 'SAAS_ADMIN') {
-        setBranches(serverBranches);
-      } else {
-        const staffBranches = user.branches?.map((b: any) => b.branch) || [];
-        setBranches(staffBranches);
-      }
+  const branches = React.useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'OWNER' || user.role === 'SAAS_ADMIN') {
+      return serverBranches;
     }
+    return user.branches?.map((b: any) => b.branch) || [];
   }, [user, serverBranches]);
 
-  const { data: inventoryResponse, isLoading: isInventoryLoading } = useQuery({
+  const { data: inventoryResponse, isLoading: isInventoryLoading, refetch } = useQuery({
     queryKey: ['inventory', { branchId, type, medicineType, search, currentPage, limit }],
     queryFn: () => inventoryService.getInventories(branchId, type, medicineType, search, currentPage, limit),
     staleTime: 30 * 1000,
@@ -100,65 +95,10 @@ export default function InventoryPage() {
     }
   }, [inventoryResponse]);
 
-  useEffect(() => {
-    if (loading !== isInventoryLoading) {
-      setLoading(isInventoryLoading);
-    }
-  }, [isInventoryLoading, loading]);
-
-  const loadInventories = async (
-    page: number = currentPage,
-    bId: string = branchId,
-    t: string = type,
-    mt: string = medicineType,
-    s: string = search
-  ) => {
-    try {
-      setLoading(true);
-      const response = await inventoryService.getInventories(bId, t, mt, s, page, limit);
-      const data = response.data || [];
-      setTotalPages(response.meta?.lastPage || 1);
-      setTotalItems(response.meta?.total || 0);
-
-      // Sort: Expired first, then Near Expiry (within 90 days), then others
-      const sortedData = [...data].sort((a, b) => {
-        const now = new Date();
-        const ninetyDaysFromNow = new Date();
-        ninetyDaysFromNow.setDate(now.getDate() + 90);
-
-        const aExp = a.expirationDate ? new Date(a.expirationDate) : null;
-        const bExp = b.expirationDate ? new Date(b.expirationDate) : null;
-
-        const getStatusOrder = (exp: Date | null) => {
-          if (!exp) return 3; // Normal
-          if (exp < now) return 1; // Expired
-          if (exp < ninetyDaysFromNow) return 2; // Near expiry
-          return 3; // Normal
-        };
-
-        const orderA = getStatusOrder(aExp);
-        const orderB = getStatusOrder(bExp);
-
-        if (orderA !== orderB) return orderA - orderB;
-        
-        // If same status, sort by expiry date (sooner first) if applicable
-        if (aExp && bExp) return aExp.getTime() - bExp.getTime();
-        
-        // Final fallback to newest first
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-
-      setInventories(sortedData);
-    } catch (error) {
-      console.error('Failed to load inventories', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = isInventoryLoading;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    loadInventories(page);
   };
 
   const handleCreate = () => {
@@ -181,7 +121,7 @@ export default function InventoryPage() {
         onConfirm: async () => {
           try {
             await inventoryService.deleteInventory(item.id);
-            loadInventories(currentPage);
+            refetch();
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
           } catch (error: any) {
             console.error('Failed to delete item', error);
@@ -376,7 +316,6 @@ export default function InventoryPage() {
             onChange={(e) => {
               setSearch(e.target.value);
               setCurrentPage(1);
-              loadInventories(1, branchId, type, medicineType, e.target.value);
             }}
           />
         </div>
@@ -392,7 +331,6 @@ export default function InventoryPage() {
             onChange={(val) => {
               setBranchId(val);
               setCurrentPage(1);
-              loadInventories(1, val, type, medicineType, search);
             }}
             placeholder="เลือกสาขา"
             icon={Building2}
@@ -407,7 +345,6 @@ export default function InventoryPage() {
             onChange={(val) => {
               setType(val);
               setCurrentPage(1);
-              loadInventories(1, branchId, val, medicineType, search);
             }}
             placeholder="เลือกประเภทสินค้า"
             icon={LayoutGrid}
@@ -422,7 +359,6 @@ export default function InventoryPage() {
             onChange={(val) => {
               setMedicineType(val);
               setCurrentPage(1);
-              loadInventories(1, branchId, type, val, search);
             }}
             placeholder="เลือกประเภทยา"
             icon={Pill}
@@ -448,7 +384,7 @@ export default function InventoryPage() {
         initialData={editingItem}
         branchId={branchId}
         branches={branches}
-        onSuccess={() => loadInventories(currentPage)}
+        onSuccess={() => refetch()}
       />
 
       <AlertModal
