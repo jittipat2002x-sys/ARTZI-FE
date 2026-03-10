@@ -44,14 +44,12 @@ async function request<T = unknown>(
             window.location.href = '/login';
         }
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || 'Unauthorized: Invalid credentials');
+        throw { message: errorData?.message || 'Unauthorized: Invalid credentials', status: 401 };
     }
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(
-            errorData?.message || `Request failed with status ${response.status}`,
-        );
+        throw { message: errorData?.message || `Request failed with status ${response.status}`, status: response.status };
     }
 
     return response.json();

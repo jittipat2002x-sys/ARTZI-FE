@@ -166,8 +166,20 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('branding');
   }, [applyBrandColor]);
 
+  const contextValue = React.useMemo(() => ({
+    brandColor,
+    logoUrl,
+    tenantName,
+    branchName,
+    isInitialLoading,
+    setBrandColor,
+    setLogoUrl,
+    updateBranding,
+    resetBranding
+  }), [brandColor, logoUrl, tenantName, branchName, isInitialLoading, setBrandColor, setLogoUrl, updateBranding, resetBranding]);
+
   return (
-    <BrandingContext.Provider value={{ brandColor, logoUrl, tenantName, branchName, isInitialLoading, setBrandColor, setLogoUrl, updateBranding, resetBranding }}>
+    <BrandingContext.Provider value={contextValue}>
       <div className={isInitialLoading ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'}>
         {children}
       </div>
