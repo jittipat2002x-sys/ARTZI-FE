@@ -2,10 +2,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useBrandingSync } from '@/hooks/use-global-data';
 
 interface BrandingContextType {
   brandColor: string;
   logoUrl: string | null;
+  tenantName: string | null;
+  branchName: string | null;
+  isInitialLoading: boolean;
   setBrandColor: (color: string) => void;
   setLogoUrl: (url: string | null) => void;
   updateBranding: (color: string, logo: string | null) => void;
@@ -20,6 +24,9 @@ const DEFAULT_BRAND_COLOR = '#006837';
 const BrandingContext = createContext<BrandingContextType>({
   brandColor: DEFAULT_BRAND_COLOR,
   logoUrl: null,
+  tenantName: null,
+  branchName: null,
+  isInitialLoading: true,
   setBrandColor: () => {},
   setLogoUrl: () => {},
   updateBranding: () => {},
@@ -31,10 +38,13 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const [brandColor, setBrandColorState] = useState(DEFAULT_BRAND_COLOR);
   const [logoUrl, setLogoUrlState] = useState<string | null>(null);
   const [tenantName, setTenantName] = useState<string | null>(null);
+  const [branchName, setBranchName] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // Load initial branding from localStorage and server on mount
+  const { data: serverBranding, isLoading: isSyncing } = useBrandingSync();
+
+  // Load initial branding from localStorage on mount
   useEffect(() => {
-    // 1. Initial load from localStorage for speed
     const saved = localStorage.getItem('branding');
     if (saved) {
       try {
@@ -46,31 +56,22 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         if (data.logoUrl) setLogoUrlState(data.logoUrl);
       } catch {}
     }
-
-    // 2. Fetch from server to ensure sync
-    const fetchBranding = async () => {
-      try {
-        const token = localStorage.getItem('token'); // or authService.getToken()
-        if (!token) return;
-
-        const res = await fetch('http://localhost:3100/api/tenants/my/branding', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        if (res.ok) {
-          const json = await res.json();
-          const data = json.data || json;
-          if (data.brandColor) {
-            updateBranding(data.brandColor, data.logoUrl || null);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to sync branding:', err);
-      }
-    };
-
-    fetchBranding();
+    setIsInitialLoading(false);
   }, []);
+
+  // Sync state when server data changes
+  useEffect(() => {
+    if (serverBranding) {
+      const color = serverBranding.brandColor;
+      const logo = serverBranding.logoUrl || null;
+      if (color) {
+        setBrandColorState(color);
+        applyBrandColor(color);
+      }
+      setLogoUrlState(logo);
+      saveBranding(color, logo);
+    }
+  }, [serverBranding]);
 
   // Sync document title with tenantName from auth if available
   useEffect(() => {
@@ -81,6 +82,9 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         if (user.tenantName) {
           setTenantName(user.tenantName);
         }
+        if (user.branchName) {
+          setBranchName(user.branchName);
+        }
       }
     } catch {}
   }, []);
@@ -88,7 +92,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   // Continuously force title and favicon on every route change (because Next.js soft-nav overwrites them)
   useEffect(() => {
     // Override Document Title
-    const title = tenantName || 'Vet Dashboard';
+    const title = tenantName || 'PetHeart';
     if (document.title !== title) {
       document.title = title;
     }
@@ -100,7 +104,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       link.rel = 'icon';
       document.head.appendChild(link);
     }
-    link.href = logoUrl || '/favicon.ico';
+    link.href = logoUrl || '/heart-icon.png';
   }, [pathname, tenantName, logoUrl]);
 
   function applyBrandColor(color: string) {
@@ -148,8 +152,10 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <BrandingContext.Provider value={{ brandColor, logoUrl, setBrandColor, setLogoUrl, updateBranding, resetBranding }}>
-      {children}
+    <BrandingContext.Provider value={{ brandColor, logoUrl, tenantName, branchName, isInitialLoading, setBrandColor, setLogoUrl, updateBranding, resetBranding }}>
+      <div className={isInitialLoading ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'}>
+        {children}
+      </div>
     </BrandingContext.Provider>
   );
 }

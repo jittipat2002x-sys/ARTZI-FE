@@ -34,13 +34,14 @@ export interface Appointment {
 }
 
 export const appointmentService = {
-    async getAppointments(page = 1, limit = 10, status?: string, branchId?: string, date?: string) {
+    async getAppointments(page = 1, limit = 10, status?: string, branchId?: string, date?: string, search?: string) {
         const params = new URLSearchParams();
         params.append('page', page.toString());
         params.append('limit', limit.toString());
         if (status && status !== 'all') params.append('status', status);
         if (branchId && branchId !== 'all') params.append('branchId', branchId);
         if (date) params.append('date', date);
+        if (search) params.append('search', search);
 
         const res = await apiClient.get<{ data: Appointment[]; meta: any }>(`/appointments?${params.toString()}`);
         return res.data;
@@ -48,6 +49,10 @@ export const appointmentService = {
 
     async update(id: string, data: Partial<Appointment>) {
         const res = await apiClient.patch<Appointment>(`/appointments/${id}`, data);
+        return res.data;
+    },
+    async createAppointment(data: { petIds: string[], vetId?: string, date: string, reason: string }) {
+        const res = await apiClient.post<Appointment[]>('/appointments', data);
         return res.data;
     },
 };

@@ -9,7 +9,7 @@ import { PetOpdHistory } from './PetOpdHistory';
 import { PetMedicineSelector, SelectedMedication } from './PetMedicineSelector';
 import { ThaiDateInput } from '@/components/ui/thai-date-input';
 import { BrandTextarea } from '@/components/ui/brand-textarea';
-import { Dog, ShoppingCart, Calendar, CheckCircle2 } from 'lucide-react';
+import { Dog, ShoppingCart, Calendar, CheckCircle2, Printer, Receipt, Box, Search, X, FlaskConical, FileUp, Trash2 } from 'lucide-react';
 import { Modal, AlertModal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { VisitSuccessModal } from './VisitSuccessModal';
@@ -18,6 +18,8 @@ import { PrintInvoiceModal } from './PrintInvoiceModal';
 import { PrintAppointmentModal } from './PrintAppointmentModal';
 import { appointmentService, Appointment } from '@/services/appointment.service';
 import { visitService, Visit } from '@/services/visit.service';
+import { ipdService, Ward, Cage } from '@/services/ipd.service';
+import { CageGridSelector } from '@/components/ipd/CageGridSelector';
 
 interface VisitPanelProps {
   customer: Customer;
@@ -29,6 +31,15 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
   const { brandColor } = useBranding();
   const createVisitMutation = useCreateVisit();
   const user = authService.getUser();
+
+  const branchId = user?.branches?.[0]?.branchId;
+  const [wards, setWards] = React.useState<Ward[]>([]);
+  
+  React.useEffect(() => {
+    if (branchId) {
+      ipdService.getWards(branchId).then(setWards).catch(console.error);
+    }
+  }, [branchId]);
   
   const [selectedPets, setSelectedPets] = React.useState<string[]>(() => {
     if (linkedAppointments && linkedAppointments.length > 0) {
@@ -55,7 +66,10 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
             nextAppointmentDate: '',
             nextAppointmentTime: '09:00',
             nextAppointmentReason: '',
-            appointmentIds: [app.id]
+            appointmentIds: [app.id],
+            ipdCageId: '',
+            ipdNotes: '',
+            labTests: []
           };
         } else {
           // If multiple appointments for the same pet in the linked group
@@ -80,7 +94,6 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
   const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
   const [isInvoicePrintOpen, setIsInvoicePrintOpen] = useState(false);
   const [isApptPrintOpen, setIsApptPrintOpen] = useState(false);
-  const [selectedPetIdForAppt, setSelectedPetIdForAppt] = useState<string | null>(null);
   
   const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
@@ -94,6 +107,8 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
     description: '',
     type: 'info',
   });
+  
+  const [cageSelectorPetId, setCageSelectorPetId] = useState<string | null>(null);
   
   // Calculate total
   const petMedsTotal = Object.values(petRecords).reduce((acc, record) => {
@@ -137,6 +152,9 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           nextAppointmentTime: '09:00',
           nextAppointmentReason: '',
           appointmentIds: linkedForThisPet,
+          ipdCageId: '',
+          ipdNotes: '',
+          labTests: [],
         }
       }));
     }
@@ -150,6 +168,54 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
         [field]: value
       }
     }));
+  };
+
+  const addLabTest = (petId: string) => {
+    const currentTests = petRecords[petId]?.labTests || [];
+    updatePetRecord(petId, 'labTests', [
+      ...currentTests,
+      { testType: '', result: '', notes: '', files: [] }
+    ]);
+  };
+
+  const removeLabTest = (petId: string, index: number) => {
+    const currentTests = [...(petRecords[petId]?.labTests || [])];
+    currentTests.splice(index, 1);
+    updatePetRecord(petId, 'labTests', currentTests);
+  };
+
+  const updateLabTest = (petId: string, index: number, field: string, value: any) => {
+    const currentTests = [...(petRecords[petId]?.labTests || [])];
+    currentTests[index] = { ...currentTests[index], [field]: value };
+    updatePetRecord(petId, 'labTests', currentTests);
+  };
+
+  const handleFileChange = async (petId: string, testIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles = [...(petRecords[petId]?.labTests[testIndex].files || [])];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const reader = new FileReader();
+      
+      const filePromise = new Promise<{ name: string; base64Data: string; contentType: string }>((resolve) => {
+        reader.onload = (event) => {
+          resolve({
+            name: file.name,
+            base64Data: event.target?.result as string,
+            contentType: file.type
+          });
+        };
+      });
+      
+      reader.readAsDataURL(file);
+      const fileData = await filePromise;
+      newFiles.push(fileData);
+    }
+
+    updateLabTest(petId, testIndex, 'files', newFiles);
   };
 
   const handleSubmit = () => {
@@ -192,10 +258,13 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
         const { nextAppointmentTime: _, appointmentIds, ...rest } = record;
         const apptDateToSend = finalApptDate && finalApptDate.trim() !== '' ? finalApptDate : null;
         
+        const ipdCageId = record.ipdCageId === 'PENDING' || record.ipdCageId === '' ? undefined : record.ipdCageId;
+        
         return {
           ...rest,
           appointmentIds,
           nextAppointmentDate: apptDateToSend as any,
+          ipdCageId,
           vetId: record.vetId === 'REPLACE_WITH_USER_ID' || !record.vetId ? (currentUser?.id || '') : record.vetId,
           medications: (record.medications || []).map((med: any) => ({
             inventoryId: med.inventoryId,
@@ -220,16 +289,47 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
         discount: 0,
       });
       
-      const visitData = (result as any)?.data || result;
+      // Robust extraction of the visit object from potential wrappers or arrays
+      const resultObj = result as any;
+      let visitData = null;
+
+      // Prioritize direct data access
+      const rawData = resultObj?.data || resultObj;
+
+      if (Array.isArray(rawData)) {
+        // If it's an array of medical records, look for the visit object inside the first record
+        visitData = rawData[0]?.visit;
+        
+        // If visit relation is missing but we have medical records, 
+        // we can try to "reconstruct" a minimal visit if we HAVE to, 
+        // but it's better to log a specific error.
+        if (!visitData && rawData[0]?.visitId) {
+          console.warn('Backend returned records without visit relation. Attempting reconstruction.');
+          visitData = { 
+            id: rawData[0].visitId, 
+            visitDate: rawData[0].visitDate || new Date().toISOString(),
+            medicalRecords: rawData 
+          };
+        }
+      } else {
+        // Fallback to extraction from object
+        visitData = rawData?.id ? rawData : rawData?.data;
+      }
+      
+      if (!visitData || !visitData.id) {
+        console.error('Visit data extraction failed. Result structure:', resultObj);
+        throw new Error('บันทึกสำเร็จแต่ไม่ได้รับข้อมูลการเข้ารักษากลับมา (Missing Visit Data)');
+      }
+
       setCreatedVisit(visitData);
       setIsSuccessOpen(true);
       // Don't call onClose() yet, wait for success modal
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create visit:', error);
       setAlertConfig({
         isOpen: true,
         title: 'เกิดข้อผิดพลาด',
-        description: 'ไม่พบข้อมูลสาขา หรือ เซสชันหมดอายุ',
+        description: error?.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
         type: 'danger'
       });
     }
@@ -312,12 +412,19 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
                 />
               </div>
               
-              <div className="space-y-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <BrandTextarea
                   label="แผนการรักษา (Treatment Plan)"
                   rows={2}
                   value={record.treatment}
                   onChange={e => updatePetRecord(petId, 'treatment', e.target.value)}
+                />
+                <BrandTextarea
+                  label="อธิบายเพิ่มเติม (Additional Notes)"
+                  rows={2}
+                  placeholder="เช่น พฤติกรรมสัตว์, ข้อควรระวังพิเศษ..."
+                  value={record.notes}
+                  onChange={e => updatePetRecord(petId, 'notes', e.target.value)}
                 />
               </div>
 
@@ -359,6 +466,152 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
                 </div>
               </div>
 
+              {/* IPD Admission Section */}
+              <div 
+                className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl space-y-3 bg-gray-50/50 dark:bg-gray-900/30"
+              >
+                <div className="flex items-center justify-between">
+                  <h5 className="text-sm font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Box size={14} className="text-slate-500 dark:text-slate-400" /> แอดมิทเข้าหออภิบาล (IPD)
+                  </h5>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      id={`admit-toggle-${petId}`}
+                      checked={!!record.ipdCageId}
+                      onChange={(e) => updatePetRecord(petId, 'ipdCageId', e.target.checked ? 'PENDING' : '')}
+                      className="rounded border-gray-300 text-brand focus:ring-brand"
+                      style={{ accentColor: brandColor }}
+                    />
+                    <label htmlFor={`admit-toggle-${petId}`} className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer">ต้องการแอดมิท</label>
+                  </div>
+                </div>
+
+                {record.ipdCageId !== '' && (
+                  <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">เลือกกรง</label>
+                      <button
+                        type="button"
+                        onClick={() => setCageSelectorPetId(petId)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold flex items-center justify-between group hover:border-brand transition-all shadow-sm"
+                      >
+                        {record.ipdCageId && record.ipdCageId !== 'PENDING' ? (
+                          <div className="flex items-center gap-2">
+                             <div className="p-1 bg-brand/10 rounded-lg" style={{ backgroundColor: brandColor + '15', color: brandColor }}>
+                                <Box size={14} />
+                             </div>
+                             <span className="text-gray-900 dark:text-white">
+                               {wards.flatMap(w => w.cages).find(c => c.id === record.ipdCageId)?.name || 'กรงที่เลือก'}
+                             </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">คลิกเพื่อเลือกกรง...</span>
+                        )}
+                        <Search size={14} className="text-gray-400 group-hover:text-brand transition-colors" />
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <BrandInput 
+                        label="หมายเหตุการกักตัว"
+                        placeholder="เช่น งดน้ำ/อาหาร, สังเกตอาการ..."
+                        value={record.ipdNotes}
+                        onChange={e => updatePetRecord(petId, 'ipdNotes', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Lab Results Section */}
+              <div 
+                className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl space-y-3 bg-gray-50/50 dark:bg-gray-900/30"
+              >
+                <div className="flex items-center justify-between">
+                  <h5 className="text-sm font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <FlaskConical size={14} className="text-slate-500 dark:text-slate-400" /> ผลตรวจทางห้องปฏิบัติการ (Lab Results)
+                  </h5>
+                  <button
+                    type="button"
+                    onClick={() => addLabTest(petId)}
+                    className="text-sm font-bold text-brand uppercase hover:opacity-80 transition-opacity"
+                    style={{ color: brandColor }}
+                  >
+                    + เพิ่มผลตรวจ Lab
+                  </button>
+                </div>
+
+                {record.labTests && record.labTests.length > 0 ? (
+                  <div className="space-y-4">
+                    {record.labTests.map((test: any, index: number) => (
+                      <div key={index} className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg space-y-3 relative group">
+                        <button
+                          onClick={() => removeLabTest(petId, index)}
+                          className="absolute -top-2 -right-2 p-1 bg-red-50 text-red-500 rounded-full border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <BrandInput
+                            label="ประเภทการตรวจ"
+                            placeholder="เช่น CBC, Blood Chem, X-Ray"
+                            value={test.testType}
+                            onChange={(e) => updateLabTest(petId, index, 'testType', e.target.value)}
+                          />
+                          <BrandInput
+                            label="ผลตรวจ"
+                            placeholder="เช่น Normal, High ALT..."
+                            value={test.result}
+                            onChange={(e) => updateLabTest(petId, index, 'result', e.target.value)}
+                          />
+                        </div>
+                        
+                        <BrandTextarea
+                          label="หมายเหตุ"
+                          rows={1}
+                          value={test.notes}
+                          onChange={(e) => updateLabTest(petId, index, 'notes', e.target.value)}
+                        />
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-400 uppercase block">ไฟล์แนบ / รูปภาพ</label>
+                          <div className="flex flex-wrap gap-2">
+                            {test.files?.map((file: any, fIndex: number) => (
+                              <div key={fIndex} className="flex items-center gap-2 p-1 pr-2 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded text-[10px] text-gray-600 dark:text-gray-400">
+                                <span className="max-w-[100px] truncate">{file.name}</span>
+                                <button 
+                                  onClick={() => {
+                                    const newFiles = [...test.files];
+                                    newFiles.splice(fIndex, 1);
+                                    updateLabTest(petId, index, 'files', newFiles);
+                                  }}
+                                  className="text-red-400 hover:text-red-600"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            ))}
+                            <label className="flex items-center gap-1 p-1 px-2 border border-dashed border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:border-brand transition-colors text-[10px] text-gray-500">
+                              <FileUp size={10} />
+                              <span>อัปโหลด</span>
+                              <input 
+                                type="file" 
+                                multiple 
+                                className="hidden" 
+                                onChange={(e) => handleFileChange(petId, index, e)}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-400 italic text-center py-2">ยังไม่มีข้อมูลการตรวจ Lab</p>
+                )}
+              </div>
+
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                   <PetMedicineSelector 
                     selectedItems={record.medications || []}
@@ -386,10 +639,17 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
       </div>
 
       <div className="mt-6 flex justify-end">
-        <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-6 py-4 rounded-xl border border-blue-100 dark:border-blue-800/50 flex flex-col gap-1 items-end min-w-64">
-          <span className="text-sm">รวมค่ายาและบริการ (สัตว์เลี้ยง): ฿{petMedsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-          <span className="text-sm">รวมค่าสินค้าทั่วไป: ฿{generalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-          <div className="h-px bg-blue-200 dark:bg-blue-800 my-1 w-full" />
+        <div 
+          className="px-6 py-4 rounded-xl border flex flex-col gap-1 items-end min-w-64"
+          style={{ 
+            backgroundColor: brandColor + '08',
+            borderColor: brandColor + '20',
+            color: brandColor
+          }}
+        >
+          <span className="text-sm opacity-80">รวมค่ายาและบริการ (สัตว์เลี้ยง): ฿{petMedsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          <span className="text-sm opacity-80">รวมค่าสินค้าทั่วไป: ฿{generalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          <div className="h-px my-1 w-full opacity-20" style={{ backgroundColor: brandColor }} />
           <span className="text-lg font-bold">ยอดรวมสุทธิ: ฿{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
@@ -417,8 +677,7 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           customerName={`${customer.firstName} ${customer.lastName}`}
           onPrintLabels={() => setIsLabelPrintOpen(true)}
           onPrintInvoice={() => setIsInvoicePrintOpen(true)}
-          onPrintAppointment={(petId) => {
-            setSelectedPetIdForAppt(petId);
+          onPrintAppointment={() => {
             setIsApptPrintOpen(true);
           }}
         />
@@ -433,9 +692,9 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           customerName={`${customer.firstName} ${customer.lastName}`}
           items={createdVisit.medicalRecords?.flatMap((r: any) => 
             (r.medications || []).map((m: any) => ({
-              name: m.inventory?.name,
+              name: m.inventory?.name || m.inventoryName || m.name,
               quantity: m.quantity,
-              usageInstructions: m.dosage || ''
+              usageInstructions: m.dosage || m.usageInstructions || ''
             }))
           ) || []}
         />
@@ -454,33 +713,37 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
             name: item.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice
+            totalPrice: item.totalPrice,
+            medicalRecordId: item.medicalRecordId,
+            id: item.id
           }))}
           totalAmount={createdVisit.invoice.totalAmount}
           discount={createdVisit.invoice.discount}
           netAmount={createdVisit.invoice.netAmount}
           paymentMethod={createdVisit.invoice.paymentMethod}
+          medicalRecords={createdVisit.medicalRecords}
         />
       )}
 
       {/* Print Appointment Modal */}
-      {createdVisit && isApptPrintOpen && selectedPetIdForAppt && (
+      {createdVisit && isApptPrintOpen && (
         <PrintAppointmentModal 
           isOpen={isApptPrintOpen}
           onClose={() => {
             setIsApptPrintOpen(false);
-            setSelectedPetIdForAppt(null);
           }}
           customerName={`${customer.firstName} ${customer.lastName}`}
-          petName={createdVisit.medicalRecords?.find((r: any) => r.petId === selectedPetIdForAppt)?.pet?.name || ''}
-          appointmentDate={(() => {
-            const recordWithAppt = createdVisit.medicalRecords?.find((r: any) => r.petId === selectedPetIdForAppt);
-            return recordWithAppt?.nextAppointmentDate ? new Date(recordWithAppt.nextAppointmentDate).toLocaleString('th-TH', { 
+          appointments={(createdVisit.medicalRecords || [])
+            .filter((r: any) => r.nextAppointmentDate)
+            .map((r: any) => ({
+              petName: r.pet?.name || 'Unknown',
+              date: new Date(r.nextAppointmentDate).toLocaleString('th-TH', { 
                 year: 'numeric', month: 'long', day: 'numeric', 
                 hour: '2-digit', minute: '2-digit' 
-              }) : 'N/A';
-          })()}
-          reason={createdVisit.medicalRecords?.find((r: any) => r.petId === selectedPetIdForAppt)?.nextAppointmentReason || 'Follow-up'}
+              }),
+              reason: r.nextAppointmentReason || 'Follow-up'
+            }))
+          }
         />
       )}
 
@@ -510,6 +773,40 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
         type={alertConfig.type}
         confirmText="ตกลง"
       />
+
+      <Modal
+        isOpen={!!cageSelectorPetId}
+        onClose={() => setCageSelectorPetId(null)}
+        showCloseButton={false}
+        className="sm:max-w-4xl rounded-3xl overflow-hidden"
+      >
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-brand/10 rounded-xl" style={{ backgroundColor: brandColor + '15', color: brandColor }}>
+                <Box size={24} />
+             </div>
+             <div>
+                <h3 className="text-xl font-black">เลือกกรงและที่พัก (Boarding Selection)</h3>
+                <p className="text-xs text-gray-500">ระบุกรงที่ต้องการให้สัตว์เลี้ยงพักอาศัย</p>
+             </div>
+          </div>
+          <button onClick={() => setCageSelectorPetId(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-6 bg-gray-50/50 dark:bg-gray-900/20">
+          <CageGridSelector 
+            wards={wards}
+            selectedCageId={cageSelectorPetId ? petRecords[cageSelectorPetId]?.ipdCageId : undefined}
+            onSelectCage={(cage) => {
+              if (cageSelectorPetId) {
+                updatePetRecord(cageSelectorPetId, 'ipdCageId', cage.id);
+                setCageSelectorPetId(null);
+              }
+            }}
+          />
+        </div>
+      </Modal>
     </>
   );
 }
@@ -529,6 +826,13 @@ export function CompletedVisitDetailsModal({ isOpen, onClose, group }: Completed
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visits, setVisits] = useState<Visit[]>([]);
+  
+  // Printing States
+  const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
+  const [isInvoicePrintOpen, setIsInvoicePrintOpen] = useState(false);
+  const [isApptPrintOpen, setIsApptPrintOpen] = useState(false);
+  const [printData, setPrintData] = useState<any>(null);
+  const [selectedPetIdForAppt, setSelectedPetIdForAppt] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (isOpen && group) {
@@ -542,8 +846,8 @@ export function CompletedVisitDetailsModal({ isOpen, onClose, group }: Completed
     try {
       const appointmentId = group.originalAppointments?.[0]?.id;
       const data = await visitService.getVisits(group.customer.id, group.date, appointmentId);
-      if (Array.isArray(data)) {
-        setVisits(data);
+      if (data && Array.isArray(data.data)) {
+        setVisits(data.data);
       } else {
         setVisits([]);
       }
@@ -637,14 +941,49 @@ export function CompletedVisitDetailsModal({ isOpen, onClose, group }: Completed
                       </div>
                     </div>
 
+                        <div className="px-6 py-2 bg-gray-50/30 dark:bg-gray-800/20 border-b border-gray-100 dark:border-gray-700 flex gap-2">
+                           {record.medications && record.medications.length > 0 && (
+                             <button 
+                               onClick={() => {
+                                 setPrintData(visit);
+                                 setIsLabelPrintOpen(true);
+                               }}
+                               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors border"
+                               style={{ 
+                                 backgroundColor: brandColor + '08',
+                                 borderColor: brandColor + '20',
+                                 color: brandColor
+                               }}
+                             >
+                               <Printer size={12} /> พิมพ์ฉลากยา
+                             </button>
+                           )}
+                       {record.nextAppointmentDate && (
+                         <button 
+                           onClick={() => {
+                             setPrintData(visit);
+                             setSelectedPetIdForAppt(record.petId);
+                             setIsApptPrintOpen(true);
+                           }}
+                           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 text-[10px] font-bold transition-colors border border-orange-100"
+                         >
+                           <Calendar size={12} /> พิมพ์ใบนัด
+                         </button>
+                       )}
+                    </div>
+
                     <div className="p-6 space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {[
                           { title: "อาการเบื้องต้น", value: record.symptoms },
                           { title: "การวินิจฉัย", value: record.diagnosis },
-                          { title: "แผนการรักษา", value: record.treatment }
+                          { title: "แผนการรักษา", value: record.treatment },
+                          { title: "อธิบายเพิ่มเติม", value: record.notes }
                         ].map((sec, i) => (
-                          <div key={i} className="space-y-1.5">
+                          <div key={i} className={cn(
+                            "space-y-1.5",
+                            sec.title === "อธิบายเพิ่มเติม" ? "md:col-span-3" : ""
+                          )}>
                             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">{sec.title}</h4>
                             <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl text-sm text-gray-700 dark:text-gray-300 min-h-[60px]">
                                {sec.value || '-'}
@@ -652,6 +991,35 @@ export function CompletedVisitDetailsModal({ isOpen, onClose, group }: Completed
                           </div>
                         ))}
                       </div>
+
+                      {record.admission && (
+                        <div 
+                          className="mt-4 p-4 rounded-2xl border flex items-center gap-3"
+                          style={{ 
+                            backgroundColor: brandColor + '08', 
+                            borderColor: brandColor + '20' 
+                          }}
+                        >
+                          <div 
+                            className="p-2 rounded-lg"
+                            style={{ backgroundColor: brandColor + '15', color: brandColor }}
+                          >
+                             <Box size={20} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-[10px] font-black uppercase tracking-widest px-1 opacity-70" style={{ color: brandColor }}>ข้อมูลแอดมิท (IPD Admission)</h4>
+                            <p className="text-sm font-bold" style={{ color: brandColor }}>
+                              {record.admission.cage?.ward?.name || 'ไม่ระบุห้อง'} - {record.admission.cage?.name || 'ไม่ระบุกรง'}
+                            </p>
+                            {(record.admission.reason || record.admission.notes) && (
+                              <div className="mt-1 text-xs italic leading-relaxed opacity-70" style={{ color: brandColor }}>
+                                {record.admission.reason && <span className="mr-2">สาเหตุ: {record.admission.reason}</span>}
+                                {record.admission.notes && <span>(หมายเหตุ: {record.admission.notes})</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {record.medications && record.medications.length > 0 && (
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
@@ -685,6 +1053,15 @@ export function CompletedVisitDetailsModal({ isOpen, onClose, group }: Completed
                     <ShoppingCart size={18} className="text-blue-500" />
                     สรุปค่าใช้จ่าย
                   </h4>
+                  <button 
+                    onClick={() => {
+                      setPrintData(visits[0]);
+                      setIsInvoicePrintOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-bold transition-colors border border-emerald-100"
+                  >
+                    <Receipt size={14} /> พิมพ์ใบเสร็จ
+                  </button>
                 </div>
                 <div className="flex justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                   <span className="text-sm text-gray-500 font-medium">ยอดชำระสุทธิ</span>
@@ -704,6 +1081,70 @@ export function CompletedVisitDetailsModal({ isOpen, onClose, group }: Completed
           ปิดหน้าต่าง
         </BrandButton>
       </div>
+
+      {/* Printing Modals Reused */}
+      {printData && (
+        <>
+          <PrintLabelModal 
+            isOpen={isLabelPrintOpen}
+            onClose={() => setIsLabelPrintOpen(false)}
+            petName={printData.medicalRecords?.map((r: any) => r.pet?.name).join(', ') || ''}
+            customerName={`${group.customer.firstName} ${group.customer.lastName}`}
+            items={printData.medicalRecords?.flatMap((r: any) => 
+              (r.medications || []).map((m: any) => ({
+                name: m.inventory?.name || m.inventoryName || m.name,
+                quantity: m.quantity,
+                usageInstructions: m.dosage || m.usageInstructions || ''
+              }))
+            ) || []}
+          />
+
+          {printData.invoice && (
+            <PrintInvoiceModal 
+              isOpen={isInvoicePrintOpen}
+              onClose={() => setIsInvoicePrintOpen(false)}
+              customerName={`${group.customer.firstName} ${group.customer.lastName}`}
+              petNames={printData.medicalRecords?.map((r: any) => r.pet?.name).join(', ') || ''}
+              invoiceDate={new Date(printData.invoice.createdAt).toLocaleDateString('th-TH')}
+              invoiceNumber={printData.invoice.id.slice(0, 8).toUpperCase()}
+              items={printData.invoice.items.map((item: any) => ({
+                name: item.name,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+                medicalRecordId: item.medicalRecordId,
+                id: item.id
+              }))}
+              totalAmount={printData.invoice.totalAmount}
+              discount={printData.invoice.discount}
+              netAmount={printData.invoice.netAmount}
+              paymentMethod={printData.invoice.paymentMethod}
+              medicalRecords={printData.medicalRecords}
+            />
+          )}
+
+          {isApptPrintOpen && (
+            <PrintAppointmentModal 
+              isOpen={isApptPrintOpen}
+              onClose={() => {
+                setIsApptPrintOpen(false);
+              }}
+              customerName={`${group.customer.firstName} ${group.customer.lastName}`}
+              appointments={(printData.medicalRecords || [])
+                .filter((r: any) => r.nextAppointmentDate)
+                .map((r: any) => ({
+                  petName: r.pet?.name || 'Unknown',
+                  date: new Date(r.nextAppointmentDate).toLocaleString('th-TH', { 
+                    year: 'numeric', month: 'long', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit' 
+                  }),
+                  reason: r.nextAppointmentReason || 'Follow-up'
+                }))
+              }
+            />
+          )}
+        </>
+      )}
     </Modal>
   );
 }

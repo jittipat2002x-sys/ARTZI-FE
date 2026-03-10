@@ -16,6 +16,7 @@ interface User {
     brandColor?: string | null;
     logoUrl?: string | null;
     branchName?: string | null;
+    branchId?: string | null;
     subscriptionStatus?: string;
     daysRemaining?: number | null;
     branches?: any[];
@@ -77,6 +78,7 @@ export const authService = {
                 brandColor: data.tenant?.brandColor || data.brandColor || currentUser?.brandColor,
                 logoUrl: data.tenant?.logoUrl || data.logoUrl || currentUser?.logoUrl,
                 branchName: data.branches?.[0]?.branch?.name || data.branchName || currentUser?.branchName,
+                branchId: data.branches?.[0]?.branchId || data.branchId || currentUser?.branchId,
             };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;

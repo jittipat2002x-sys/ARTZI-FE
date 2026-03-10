@@ -64,8 +64,8 @@ export function PetMedicineSelector({ selectedItems, onChange, petName, customer
     try {
       const user = authService.getUser();
       const branchId = user?.branches?.[0]?.branchId;
-      // Fetching MEDICINE, VACCINE, and SERVICE specifically
-      const res = await inventoryService.getInventories(branchId, '', '', search, 1, 10);
+      // Fetching MEDICINE, VACCINE, and SERVICE specifically - only active items
+      const res = await inventoryService.getInventories(branchId, '', '', search, 1, 10, false, true);
       setResults(res.data);
     } catch (error) {
       console.error('Failed to search inventory:', error);

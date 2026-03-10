@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { userManagementService, roleService, branchService } from '@/services/admin.service';
-import { authService } from '@/services/auth.service';
+import { useAuthMe, useRoles, useBranches } from '@/hooks/use-global-data';
+import { useQuery } from '@tanstack/react-query';
 import { Modal, AlertModal } from '@/components/ui/modal';
 import { Pagination } from '@/components/ui/pagination';
 import { BrandInput } from '@/components/ui/brand-input';
@@ -16,9 +17,9 @@ export default function UsersPage() {
   const { brandColor } = useBranding();
   const [users, setUsers] = useState<any[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [roles, setRoles] = useState<any[]>([]);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: currentUserByHook } = useAuthMe();
+  const { data: serverRoles = [] } = useRoles();
+  const { data: serverBranches = [] } = useBranches();
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
@@ -35,41 +36,33 @@ export default function UsersPage() {
   const [deleteUser, setDeleteUser] = useState<any>(null);
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '', roleId: '', branchIds: [] as string[] });
 
-  const currentUser = authService.getUser();
-  const isSaasAdmin = currentUser?.role === 'SAAS_ADMIN';
+  const isSaasAdmin = currentUserByHook?.role === 'SAAS_ADMIN';
 
-  const fetchData = async (page = 1) => {
-    setLoading(true);
-    try {
-      // Fetch users with pagination and search
-      const response = await userManagementService.getAll(page, 10, search, selectedBranchId, selectedClinicId);
-      setUsers(response.data || []);
-      setTotalPages(response.meta?.lastPage || 1);
-      setTotalUsers(response.meta?.total || 0);
-      setCurrentPage(page);
+  const { data: userResponse, isLoading: isUsersLoading, refetch } = useQuery({
+    queryKey: ['users', { page: currentPage, search, selectedBranchId, selectedClinicId }],
+    queryFn: () => userManagementService.getAll(currentPage, 10, search, selectedBranchId, selectedClinicId),
+    staleTime: 30 * 1000,
+  });
 
-      // Fetch roles and branches once (or we can skip if already fetched)
-      if (roles.length === 0 || branches.length === 0) {
-        const [r, b] = await Promise.all([
-          roleService.getAll(1, 100), // Get potentially all roles
-          branchService.getAll()
-        ]);
-        setRoles(Array.isArray(r.data) ? r.data : (Array.isArray(r) ? r : []));
-        setBranches(Array.isArray(b.data) ? b.data : (Array.isArray(b) ? b : []));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+  const fetchData = (page?: number) => {
+    if (page !== undefined) setCurrentPage(page);
+    refetch();
   };
 
-  useEffect(() => { 
-    const timer = setTimeout(() => {
-      fetchData(1); 
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search, selectedBranchId, selectedClinicId]);
+  useEffect(() => {
+    if (userResponse) {
+      setUsers(userResponse.data || []);
+      setTotalPages(userResponse.meta?.lastPage || 1);
+      setTotalUsers(userResponse.meta?.total || 0);
+    }
+  }, [userResponse]);
+
+  const loading = isUsersLoading;
+
+  // Search debounce and pagination are now handled by useQuery dependencies
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -99,8 +92,8 @@ export default function UsersPage() {
     c.name?.toLowerCase().includes(clinicSearch.toLowerCase())
   );
 
-  const selectedBranch = branches.find((b: any) => b.id === selectedBranchId);
-  const filteredBranchOptions = branches.filter((b: any) =>
+  const selectedBranch = serverBranches.find((b: any) => b.id === selectedBranchId);
+  const filteredBranchOptions = serverBranches.filter((b: any) =>
     b.name?.toLowerCase().includes(branchSearch.toLowerCase())
   );
 
@@ -204,10 +197,10 @@ export default function UsersPage() {
         )}
 
         {/* Branch Filter Dropdown */}
-        {branches.length > 0 && (
+        {serverBranches.length > 0 && (
           <div className="w-64">
             <SearchableSelect
-              options={[{ id: '', name: 'ทุกสาขา' }, ...branches]}
+              options={[{ id: '', name: 'ทุกสาขา' }, ...serverBranches]}
               value={selectedBranchId}
               onChange={(val) => setSelectedBranchId(val)}
               placeholder="เลือกสาขา"
@@ -341,7 +334,7 @@ export default function UsersPage() {
               className="w-full border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
             >
               <option value="">เลือก Role</option>
-              {roles.map(r => <option key={r.id} value={r.id}>{r.name} - {r.description || ''}</option>)}
+              {serverRoles.map((r: any) => <option key={r.id} value={r.id}>{r.name} - {r.description || ''}</option>)}
             </select>
 
             {/* Branch Selection */}
@@ -349,7 +342,7 @@ export default function UsersPage() {
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">เลือกสาขา</label>
             <SearchableSelect
                 multiple
-                options={branches}
+                options={serverBranches}
                 value={form.branchIds}
                 onChange={(ids) => setForm({ ...form, branchIds: ids })}
                 placeholder="เลือกสาขาที่ดูแล..."
@@ -414,15 +407,15 @@ export default function UsersPage() {
               className="w-full border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
             >
               <option value="">เลือก Role</option>
-              {roles.map(r => <option key={r.id} value={r.id}>{r.name} - {r.description || ''}</option>)}
+              {serverRoles.map((r: any) => <option key={r.id} value={r.id}>{r.name} - {r.description || ''}</option>)}
             </select>
-
+  
             {/* Branch Selection */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">เลือกสาขา</label>
             <SearchableSelect
                 multiple
-                options={branches}
+                options={serverBranches}
                 value={form.branchIds}
                 onChange={(ids) => setForm({ ...form, branchIds: ids })}
                 placeholder="เลือกสาขาที่ดูแล..."

@@ -10,11 +10,9 @@ import Link from 'next/link';
 import { 
   Building2, 
   User, 
-  CreditCard, 
   CheckCircle2, 
   ChevronRight, 
   ChevronLeft,
-  Upload,
   ArrowRight
 } from 'lucide-react';
 import { authService } from '@/services/auth.service';
@@ -38,12 +36,6 @@ const registerSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  
-  // Step 3: Branch & Payment
-  branchName: z.string().min(2, 'Branch name is required'),
-  branchAddress: z.string().optional(),
-  branchPhone: z.string().optional(),
-  paymentSlipUrl: z.string().optional(), // In a real app, this would be a file upload
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -61,7 +53,6 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     trigger,
-    watch,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -70,7 +61,6 @@ export default function RegisterPage() {
       clinicEmail: '',
       ownerEmail: '',
       password: '',
-      branchName: 'Main Branch',
     },
   });
 
@@ -78,8 +68,6 @@ export default function RegisterPage() {
     let fields: (keyof RegisterFormValues)[] = [];
     if (step === 1) {
       fields = ['clinicName', 'clinicEmail'];
-    } else if (step === 2) {
-      fields = ['ownerEmail', 'password', 'firstName', 'lastName'];
     }
 
     const isValid = await trigger(fields);
@@ -91,13 +79,10 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      // Mocking file upload for payment slip
-      const finalData = {
+      await authService.registerClinic({
         ...data,
-        paymentSlipUrl: data.paymentSlipUrl || 'https://example.com/mock-slip.png'
-      };
-      
-      await authService.registerClinic(finalData);
+        branchName: 'Main Branch', // Default for trial
+      });
       setIsSuccessModalOpen(true);
     } catch (err: any) {
       setErrorMessage(err.response?.data?.message || err.message || 'Registration failed');
@@ -108,9 +93,8 @@ export default function RegisterPage() {
   };
 
   const steps = [
-    { id: 1, title: 'Clinic Info', icon: Building2 },
-    { id: 2, title: 'Owner Info', icon: User },
-    { id: 3, title: 'Payment', icon: CreditCard },
+    { id: 1, title: 'ข้อมูลคลินิก', icon: Building2 },
+    { id: 2, title: 'ข้อมูลเจ้าของ', icon: User },
   ];
 
   return (
@@ -122,12 +106,12 @@ export default function RegisterPage() {
       >
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center font-bold text-2xl" style={{ color: brandColor }}>M</div>
-            <span className="text-white text-2xl font-bold tracking-tight text-white/50">MedSync</span>
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center font-bold text-2xl" style={{ color: brandColor }}>P</div>
+            <span className="text-white text-2xl font-bold tracking-tight">PetHeart</span>
           </Link>
           <div className="mt-20">
             <h1 className="text-4xl font-bold text-white leading-tight">
-              เริ่มใช้งานระบบจัดการคลินิก<br />ที่ดีที่สุดสำหรับคุณ
+              ลงทะเบียนทดลองใช้<br />ฟรี 1 เดือน
             </h1>
             <p className="mt-4 text-white/80 text-lg">
               จัดการนัดหมาย, ประวัติการรักษา, คลังยา และการเงิน ในที่เดียว
@@ -196,12 +180,10 @@ export default function RegisterPage() {
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-kanit">
                 {step === 1 && 'ข้อมูลคลินิกพื้นฐาน'}
                 {step === 2 && 'ข้อมูลเจ้าของคลินิก'}
-                {step === 3 && 'หลักฐานการโอนเงิน'}
               </h2>
               <p className="text-gray-500 mt-1">
-                {step === 1 && 'กรอกข้อมูลเบื้องต้นเกี่ยวกับคลินิกของคุณ'}
+                {step === 1 && 'กรอกข้อมูลเบื้องต้นเพื่อเริ่มต้นใช้งานฟรี 1 เดือน'}
                 {step === 2 && 'สร้างบัญชีสำหรับผู้ดูแลระบบหรือเจ้าของคลินิก'}
-                {step === 3 && 'อัปโหลดสลิปเพื่อยืนยันการเปิดรักษาพรชัย'}
               </p>
             </div>
 
@@ -213,7 +195,7 @@ export default function RegisterPage() {
                     required
                     {...register('clinicName')}
                     error={errors.clinicName?.message}
-                    placeholder="เช่น เมดซิงค์ สหคลินิก"
+                    placeholder="เช่น PetHeart สหคลินิก"
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <Input
@@ -279,39 +261,6 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {step === 3 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                  <div className="p-6 rounded-2xl border transition-colors" style={{ backgroundColor: brandColor + '08', borderColor: brandColor + '20' }}>
-                    <h4 className="font-bold mb-2 flex items-center gap-2" style={{ color: brandColor }}>
-                       <CreditCard className="w-4 h-4" /> ข้อมูลการชำระเงิน
-                    </h4>
-                    <p className="text-sm dark:text-gray-300 leading-relaxed">
-                      ธนาคารกสิกรไทย (KBANK)<br />
-                      เลขที่บัญชี: 123-4-56789-0<br />
-                      ชื่อบัญชี: บจก. เมดซิงค์ เทคโนโลยี
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-center">อัปโหลดรูปภาพหลักฐานการโอนเงิน</label>
-                    <div className="relative border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-10 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer group">
-                      <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform" style={{ backgroundColor: brandColor + '15' }}>
-                        <Upload className="w-8 h-8" style={{ color: brandColor }} />
-                      </div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 text-center">ลากไฟล์มาวางที่นี่ หรือ คลิกเพื่อเลือกไฟล์</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PNG, JPG ขนาดไม่เกิน 5MB</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-amber-50 border border-amber-200 p-4 rounded flex gap-3">
-                    <div className="bg-amber-500 w-2 h-2 rounded-full mt-1 shrink-0" />
-                    <p className="text-xs text-amber-700 leading-relaxed">
-                      หลังส่งหลักฐาน ทีมงานจะตรวจสอบและอนุมัติบัญชีภายใน 24 ชม. คุณจะได้รับอีเมลแจ้งเตือนเมื่อระบบพร้อมใช้งาน
-                    </p>
-                  </div>
-                </div>
-              )}
-
               <div className="pt-6 flex gap-3">
                 {step > 1 && (
                   <button
@@ -323,7 +272,7 @@ export default function RegisterPage() {
                   </button>
                 )}
                 
-                {step < 3 ? (
+                {step < 2 ? (
                   <BrandButton
                     type="button"
                     onClick={nextStep}
@@ -337,7 +286,7 @@ export default function RegisterPage() {
                     loading={isLoading}
                     className="flex-[2] py-3 text-base"
                   >
-                    ยืนยันการลงทะเบียน <ArrowRight className="w-4 h-4" />
+                    เริ่มทดลองใช้งานฟรี <ArrowRight className="w-4 h-4" />
                   </BrandButton>
                 )}
               </div>
@@ -363,8 +312,8 @@ export default function RegisterPage() {
         isOpen={isSuccessModalOpen}
         onClose={() => {}} // Block closing to force redirect
         onConfirm={() => router.push('/login')}
-        title="ส่งข้อมูลสำเร็จ!"
-        description="ลงทะเบียนคลินิกของคุณเรียบร้อยแล้ว กรุณารอการตรวจสอบและอนุมัติจากทีมงานภายใน 24 ชม. คุณจะสามารถเข้าใช้งานได้หลังได้รับอีเมลยืนยัน"
+        title="ลงทะเบียนสำเร็จ!"
+        description="เริ่มทดลองใช้งานฟรีได้ทันที บัญชีของคุณพร้อมใช้งานแล้ว"
         confirmText="ไปหน้าเข้าสู่ระบบ"
         type="success"
         showCancelButton={false}

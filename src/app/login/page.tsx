@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
@@ -26,6 +27,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,6 +51,9 @@ export default function LoginPage() {
     setError(null);
     try {
       const response = await authService.login({ email: data.email, password: data.password });
+      
+      // Clear all queries to ensure fresh data for the new user session
+      queryClient.clear();
       
       // Update branding immediately if available in login response
       updateBranding(

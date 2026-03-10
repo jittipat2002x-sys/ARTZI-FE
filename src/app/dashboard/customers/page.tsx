@@ -107,6 +107,8 @@ export default function CustomerPage() {
   });
 
   const [expandedVisitCustomerId, setExpandedVisitCustomerId] = useState<string | null>(null);
+  const prevSearch = React.useRef(search);
+  const prevBranch = React.useRef(selectedBranchId);
 
   const loadCustomers = async (page = 1) => {
     setLoading(true);
@@ -135,7 +137,18 @@ export default function CustomerPage() {
   }, []);
 
   useEffect(() => {
-    loadCustomers(currentPage);
+    const isTyping = search !== prevSearch.current || selectedBranchId !== prevBranch.current;
+    prevSearch.current = search;
+    prevBranch.current = selectedBranchId;
+
+    const delay = isTyping ? 500 : 0;
+
+    const timeoutId = setTimeout(() => {
+      loadCustomers(currentPage);
+    }, delay);
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, search, selectedBranchId]);
 
   const addPet = () => {
@@ -855,31 +868,20 @@ export default function CustomerPage() {
       {!editingCustomerId && isFormOpen && renderForm()}
 
       {/* Main List Section */}
-      <div className="flex flex-col lg:flex-row lg:items-end gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-none border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="flex-1">
-          <label className="text-xs font-medium text-gray-500 mb-1 block">ค้นหาลูกค้าหรือเบอร์โทร</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="พิมพ์ชื่อหรือเบอร์โทรเพื่อค้นหา..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none dark:text-gray-300 transition-all custom-search-input"
-              value={search}
-              onChange={e => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-          <style dangerouslySetInnerHTML={{__html: `
-            .custom-search-input:focus {
-              --tw-ring-color: ${brandColor} !important;
-              border-color: ${brandColor} !important;
-            }
-          `}} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-none border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="w-full">
+          <label className="text-xs font-medium text-gray-500 mb-1 block">ค้นหา</label>
+          <BrandInput
+            placeholder="ค้นหาชื่อ, เบอร์โทร, Line ID, หรือชื่อ/Tag สัตว์เลี้ยง..."
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
         </div>
 
-        <div className="w-full lg:w-72">
+        <div className="w-full">
           <label className="text-xs font-medium text-gray-500 mb-1 block">กรองตามสาขา</label>
           <SearchableSelect
             options={[

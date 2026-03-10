@@ -96,7 +96,7 @@ export function SearchableSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border transition-all ${
+        className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-xl border transition-all ${
           isOpen
             ? 'bg-white dark:bg-gray-800'
             : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'

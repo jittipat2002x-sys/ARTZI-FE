@@ -37,6 +37,7 @@ async function handleResponse(res: Response) {
 export interface InventoryItem {
     id: string;
     branchId: string;
+    isActive: boolean;
     name: string;
     type: 'MEDICINE' | 'VACCINE' | 'SUPPLY' | 'FOOD' | 'SERVICE' | 'OTHER';
     medicineType?: 'INJECTION' | 'LIQUID' | 'PILL' | 'NONE' | null;
@@ -76,13 +77,14 @@ export interface InventoryItem {
 }
 
 export const inventoryService = {
-    getInventories: async (branchId?: string, type?: string, medicineType?: string, search?: string, page: number = 1, limit: number = 10, stockAlert: boolean = false): Promise<{ data: InventoryItem[], meta: any }> => {
+    getInventories: async (branchId?: string, type?: string, medicineType?: string, search?: string, page: number = 1, limit: number = 10, stockAlert: boolean = false, isActive?: boolean): Promise<{ data: InventoryItem[], meta: any }> => {
         const params = new URLSearchParams();
         if (branchId && branchId !== 'all') params.append('branchId', branchId);
         if (type && type !== 'all') params.append('type', type);
         if (medicineType && medicineType !== 'all') params.append('medicineType', medicineType);
         if (search) params.append('search', search);
         if (stockAlert) params.append('stockAlert', 'true');
+        if (isActive !== undefined) params.append('isActive', isActive.toString());
         params.append('page', page.toString());
         params.append('limit', limit.toString());
 
@@ -114,9 +116,10 @@ export const inventoryService = {
     },
 
     deleteInventory: async (id: string): Promise<void> => {
-        await fetch(`${API_BASE}/inventory/${id}`, {
+        const res = await fetch(`${API_BASE}/inventory/${id}`, {
             method: 'DELETE',
             headers: getHeaders(),
         });
+        await handleResponse(res);
     },
 };

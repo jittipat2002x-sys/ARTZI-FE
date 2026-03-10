@@ -45,7 +45,6 @@ export default function DashboardLayout({
             
             {/* Context breadcrumb or page title could go here */}
             <div className="hidden items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 md:flex">
-              <span>Dashboard</span>
             </div>
           </div>
 
@@ -59,9 +58,6 @@ export default function DashboardLayout({
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            <button className="rounded-full p-2 text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-white">
-              <Search size={20} />
-            </button>
             <NotificationBell />
           </div>
         </header>

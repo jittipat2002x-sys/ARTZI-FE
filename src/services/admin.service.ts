@@ -170,11 +170,31 @@ export const tenantService = {
         });
         return handleResponse(res);
     },
+    async getMe() {
+        const res = await fetch(`${API_BASE}/tenants/me`, { headers: getHeaders() });
+        return handleResponse(res);
+    },
+    async submitRenewal(data: { paymentSlipUrl: string }) {
+        const res = await fetch(`${API_BASE}/tenants/my/renew`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        return handleResponse(res);
+    },
     async delete(id: string) {
         const res = await fetch(`${API_BASE}/tenants/${id}`, {
             method: 'DELETE',
             headers: getHeaders(),
         });
+        return handleResponse(res);
+    },
+    async getMySubscriptions() {
+        const res = await fetch(`${API_BASE}/tenants/my/subscriptions`, { headers: getHeaders() });
+        return handleResponse(res);
+    },
+    async getSubscriptionsById(id: string) {
+        const res = await fetch(`${API_BASE}/tenants/${id}/subscriptions`, { headers: getHeaders() });
         return handleResponse(res);
     },
 };

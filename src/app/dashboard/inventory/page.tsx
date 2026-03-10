@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { InventoryItem, inventoryService, PRODUCT_TYPE_OPTIONS, MEDICINE_TYPE_OPTIONS } from '@/services/inventory.service';
-import { authService } from '@/services/auth.service';
 import { branchService } from '@/services/admin.service';
+import { useBranches, useAuthMe } from '@/hooks/use-global-data';
+import { useQuery } from '@tanstack/react-query';
 import { BrandButton } from '@/components/ui/brand-button';
 import { Plus, Edit2, Trash2, PackageSearch, Building2, LayoutGrid, Pill } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -21,50 +22,89 @@ export default function InventoryPage() {
   const [medicineType, setMedicineType] = useState<string>('');
   const [search, setSearch] = useState<string>('');
   const [branches, setBranches] = useState<any[]>([]);
-  const [user, setUser] = useState<any>(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    type: 'danger' | 'warning' | 'info';
+    confirmText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+    type: 'danger'
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
+  const { data: user } = useAuthMe();
+  const { data: serverBranches = [] } = useBranches(1, 100, user?.role === 'OWNER' || user?.role === 'SAAS_ADMIN');
+
   useEffect(() => {
-    const currentUser = authService.getUser();
-    setUser(currentUser);
-    
-    const fetchData = async () => {
-      // In our system, owners can see everything, staff see their branch
-      if (currentUser?.role === 'OWNER' || currentUser?.role === 'SAAS_ADMIN') {
-        try {
-          const b = await branchService.getAll();
-          setBranches(Array.isArray(b.data) ? b.data : (Array.isArray(b) ? b : []));
-        } catch (e) {
-          console.error('Failed to fetch branches', e);
-        }
+    if (user) {
+      if (user.role === 'OWNER' || user.role === 'SAAS_ADMIN') {
+        setBranches(serverBranches);
       } else {
-        const staffBranches = currentUser?.branches?.map((b: any) => b.branch) || [];
+        const staffBranches = user.branches?.map((b: any) => b.branch) || [];
         setBranches(staffBranches);
       }
-      
-      // Set default branch if only one, otherwise empty means "All" for owners
-      const staffBranches = currentUser?.branches?.map((b: any) => b.branch) || [];
-      if (staffBranches.length === 1 && (currentUser?.role !== 'OWNER' && currentUser?.role !== 'SAAS_ADMIN')) {
-        const bId = staffBranches[0].id;
-        setBranchId(bId);
-        loadInventories(1, bId);
-      } else {
-        loadInventories(1, ''); // Load all for this tenant
-      }
-    };
+    }
+  }, [user, serverBranches]);
 
-    fetchData();
-  }, []);
+  const { data: inventoryResponse, isLoading: isInventoryLoading } = useQuery({
+    queryKey: ['inventory', { branchId, type, medicineType, search, currentPage, limit }],
+    queryFn: () => inventoryService.getInventories(branchId, type, medicineType, search, currentPage, limit),
+    staleTime: 30 * 1000,
+  });
+
+  useEffect(() => {
+    if (inventoryResponse) {
+      const data = inventoryResponse.data || [];
+      setTotalPages(inventoryResponse.meta?.lastPage || 1);
+      setTotalItems(inventoryResponse.meta?.total || 0);
+
+      // Sort: Expired first, then Near Expiry (within 90 days), then others
+      const sortedData = [...data].sort((a, b) => {
+        const now = new Date();
+        const ninetyDaysFromNow = new Date();
+        ninetyDaysFromNow.setDate(now.getDate() + 90);
+
+        const aExp = a.expirationDate ? new Date(a.expirationDate) : null;
+        const bExp = b.expirationDate ? new Date(b.expirationDate) : null;
+
+        const getStatusOrder = (exp: Date | null) => {
+          if (!exp) return 3;
+          if (exp < now) return 1;
+          if (exp < ninetyDaysFromNow) return 2;
+          return 3;
+        };
+
+        const orderA = getStatusOrder(aExp);
+        const orderB = getStatusOrder(bExp);
+
+        if (orderA !== orderB) return orderA - orderB;
+        if (aExp && bExp) return aExp.getTime() - bExp.getTime();
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      setInventories(sortedData);
+    }
+  }, [inventoryResponse]);
+
+  useEffect(() => {
+    if (loading !== isInventoryLoading) {
+      setLoading(isInventoryLoading);
+    }
+  }, [isInventoryLoading, loading]);
 
   const loadInventories = async (
     page: number = currentPage,
@@ -131,17 +171,32 @@ export default function InventoryPage() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!itemToDelete) return;
-    try {
-      await inventoryService.deleteInventory(itemToDelete.id);
-      loadInventories(currentPage);
-    } catch (error) {
-      console.error('Failed to delete item', error);
-    } finally {
-      setIsDeleteModalOpen(false);
-      setItemToDelete(null);
-    }
+  const handleDeleteConfirm = (item: InventoryItem) => {
+    setConfirmConfig({
+        isOpen: true,
+        title: 'ยืนยันการลบข้อมูล',
+        description: `คุณแน่ใจหรือไม่ว่าต้องการลบรายการ "${item.name}"? การกระทำนี้ไม่สามารถเรียกคืนได้`,
+        type: 'danger',
+        confirmText: 'ลบข้อมูล',
+        onConfirm: async () => {
+          try {
+            await inventoryService.deleteInventory(item.id);
+            loadInventories(currentPage);
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          } catch (error: any) {
+            console.error('Failed to delete item', error);
+            setConfirmConfig(prev => ({
+                ...prev,
+                isOpen: true,
+                title: 'ไม่สามารถลบรายการได้',
+                description: error.message || 'เกิดข้อผิดพลาดในการลบรายการ',
+                type: 'warning',
+                confirmText: 'ตกลง',
+                onConfirm: () => setConfirmConfig(p => ({ ...p, isOpen: false }))
+            }));
+          }
+        }
+    });
   };
 
   const PRODUCT_TYPE_MAP: Record<string, string> = {
@@ -172,30 +227,36 @@ export default function InventoryPage() {
         const expDate = item.expirationDate ? new Date(item.expirationDate) : null;
         
         let textClass = "text-gray-900 dark:text-white";
-        let badgeText = "";
-        let badgeClass = "";
+        const isExpired = expDate && expDate < now;
+        const isNearExpiry = expDate && expDate >= now && expDate < ninetyDaysFromNow;
+        const isInactive = item.isActive === false;
+
+        const badges = [];
+        if (isExpired) {
+          badges.push({ text: "หมดอายุ", class: "bg-red-50 text-red-600 dark:bg-red-900/20 border-red-100 dark:border-red-900/30" });
+        } else if (isNearExpiry) {
+          badges.push({ text: "ใกล้หมดอายุ", class: "bg-amber-50 text-amber-700 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30" });
+        }
         
-        if (expDate) {
-          if (expDate < now) {
-            textClass = "text-red-600 dark:text-red-400";
-            badgeText = "หมดอายุ";
-            badgeClass = "bg-red-100 text-red-700 dark:bg-red-900/30";
-          } else if (expDate < ninetyDaysFromNow) {
-            textClass = "text-amber-600 dark:text-amber-400";
-            badgeText = "ใกล้หมดอายุ";
-            badgeClass = "bg-amber-100 text-amber-700 dark:bg-amber-900/30";
-          }
+        if (isInactive) {
+          badges.push({ text: "ปิดการใช้งาน", class: "bg-red-50 text-red-600 dark:bg-red-900/20 border-red-100 dark:border-red-900/30" });
+        }
+
+        if (isExpired || isNearExpiry) {
+           textClass = isExpired ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400";
         }
 
         return (
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-1">
             <span className={textClass}>{item.name}</span>
-            {item.barcode && <span className="text-xs text-gray-400 font-normal mt-0.5">{item.barcode}</span>}
-            {badgeText && (
-              <span className={`inline-flex w-fit mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${badgeClass}`}>
-                {badgeText}
-              </span>
-            )}
+            {item.barcode && <span className="text-xs text-gray-400 font-normal">{item.barcode}</span>}
+            <div className="flex flex-col gap-1 mt-0.5">
+              {badges.map((badge, idx) => (
+                <span key={idx} className={`inline-flex w-fit px-1.5 py-0.5 rounded text-[10px] font-bold border ${badge.class}`}>
+                  {badge.text}
+                </span>
+              ))}
+            </div>
           </div>
         );
       }
@@ -280,10 +341,7 @@ export default function InventoryPage() {
             <Edit2 size={16} />
           </button>
           <button
-            onClick={() => {
-              setItemToDelete(item);
-              setIsDeleteModalOpen(true);
-            }}
+            onClick={() => handleDeleteConfirm(item)}
             className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             title="ลบ"
           >
@@ -394,13 +452,13 @@ export default function InventoryPage() {
       />
 
       <AlertModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        title="ยืนยันการลบข้อมูล"
-        description={`คุณแน่ใจหรือไม่ว่าต้องการลบรายการ "${itemToDelete?.name}"? การกระทำนี้ไม่สามารถเรียกคืนได้`}
-        type="danger"
-        confirmText="ลบข้อมูล"
-        onConfirm={handleDeleteConfirm}
+        isOpen={confirmConfig.isOpen}
+        onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+        title={confirmConfig.title}
+        description={confirmConfig.description}
+        type={confirmConfig.type}
+        confirmText={confirmConfig.confirmText}
+        onConfirm={confirmConfig.onConfirm}
       />
     </div>
   );

@@ -6,26 +6,34 @@ import { X, Calendar, Printer } from 'lucide-react';
 import { BrandButton } from '@/components/ui/brand-button';
 import { Modal } from '@/components/ui/modal';
 
+interface Appointment {
+  petName: string;
+  date: string;
+  reason: string;
+  vetName?: string;
+}
+
 interface PrintAppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   customerName: string;
-  petName: string;
-  appointmentDate: string;
-  reason: string;
-  vetName?: string;
+  appointments: Appointment[];
 }
 
 export function PrintAppointmentModal({
   isOpen,
   onClose,
   customerName,
-  petName,
-  appointmentDate,
-  reason,
-  vetName
+  appointments
 }: PrintAppointmentModalProps) {
-  const { brandColor, logoUrl } = useBranding();
+  const { brandColor, logoUrl, branchName, tenantName } = useBranding();
+  const [selectedSize, setSelectedSize] = React.useState('90x54mm');
+
+  const paperSizes = [
+    { id: '90x54mm', label: '90 x 54 mm (Card)', width: '90mm' },
+    { id: '80mm', label: '80mm (Thermal)', width: '80mm' },
+    { id: 'A6', label: 'A6 (Standard)', width: '105mm' },
+  ];
 
   if (!isOpen) return null;
 
@@ -46,61 +54,122 @@ export function PrintAppointmentModal({
     const doc = iframe.contentWindow?.document;
     if (!doc) return;
 
+    const appointmentsHtml = appointments.map((appt, idx) => `
+      <div class="appointment-block" style="${idx > 0 ? 'margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 20px;' : ''}">
+        <div class="info-block">
+          <div class="label">Patient / ชื่อสัตว์เลี้ยง</div>
+          <div class="value">${appt.petName}</div>
+        </div>
+
+        <div class="appointment-time">
+          <div class="label" style="color: ${brandColor}">Appointment Date / วันที่นัดหมาย</div>
+          <div class="time-value">${appt.date}</div>
+        </div>
+
+        <div class="info-block">
+          <div class="label">Reason / สาเหตุที่นัด</div>
+          <div class="value">${appt.reason}</div>
+        </div>
+
+        ${appt.vetName ? `
+        <div class="info-block">
+          <div class="label">With / นัดกับ</div>
+          <div class="value">${appt.vetName}</div>
+        </div>
+        ` : ''}
+      </div>
+    `).join('');
+
     doc.open();
+    // Dynamic styles based on paper size
+    let pageCss = '';
+    let bodyPadding = '15px';
+    let cardBorder = `2px dashed ${brandColor}`;
+    let fontSizeScale = 1;
+    let cardPadding = '20px';
+    let cardRadius = '15px';
+    let cardHeight = 'auto';
+    let cardWidth = '100%';
+
+    if (selectedSize === '90x54mm') {
+      pageCss = `@page { size: 90mm 54mm; margin: 0; }`;
+      bodyPadding = '0';
+      fontSizeScale = 0.75;
+      cardPadding = '10px';
+      cardBorder = 'none';
+      cardRadius = '0';
+      cardHeight = '54mm';
+      cardWidth = '90mm';
+    } else if (selectedSize === '80mm') {
+      pageCss = `@page { size: 80mm auto; margin: 0; }`;
+      bodyPadding = '5px';
+      fontSizeScale = 0.85;
+      cardPadding = '15px';
+      cardBorder = `1px solid ${brandColor}30`;
+      cardWidth = '100%';
+    } else { // A6
+      pageCss = `@page { size: A6; margin: 0; }`;
+      bodyPadding = '10mm';
+      fontSizeScale = 1;
+      cardPadding = '20px';
+      cardWidth = '100%';
+    }
+
     doc.write(`
       <html>
         <head>
-          <title>Appointment - ${petName}</title>
+          <title>Appointments - ${customerName}</title>
           <style>
-            @page { size: 100mm 150mm; margin: 5mm; }
-            body { font-family: 'Inter', 'Sarabun', sans-serif; margin: 0; padding: 15px; color: #333; text-align: center; }
-            .card { border: 2px dashed ${brandColor}; padding: 20px; border-radius: 15px; }
-            .header { margin-bottom: 20px; }
-            .logo { height: 50px; margin-bottom: 10px; }
-            .title { font-size: 20px; font-weight: bold; color: ${brandColor}; margin-bottom: 5px; }
-            .subtitle { font-size: 14px; color: #666; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-            .info-block { margin-bottom: 15px; text-align: left; }
-            .label { font-size: 10px; color: #888; text-transform: uppercase; font-weight: bold; }
-            .value { font-size: 16px; font-weight: bold; margin-top: 2px; }
-            .appointment-time { background: ${brandColor}10; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid ${brandColor}30; }
-            .time-value { font-size: 20px; color: ${brandColor}; font-weight: 900; }
-            .footer { margin-top: 30px; font-size: 11px; color: #888; }
+            ${pageCss}
+            body { 
+              font-family: 'Inter', 'Sarabun', sans-serif; 
+              margin: 0; 
+              padding: ${bodyPadding}; 
+              color: #333; 
+              text-align: center;
+              font-size: ${14 * fontSizeScale}px;
+            }
+            .card { 
+              border: ${cardBorder}; 
+              padding: ${cardPadding}; 
+              border-radius: ${cardRadius}; 
+              width: ${cardWidth};
+              height: ${cardHeight};
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+            }
+            .header { margin-bottom: ${15 * fontSizeScale}px; }
+            .logo { height: ${50 * fontSizeScale}px; margin-bottom: ${8 * fontSizeScale}px; }
+            .title { font-size: ${20 * fontSizeScale}px; font-weight: bold; color: ${brandColor}; margin-bottom: ${3 * fontSizeScale}px; }
+            .subtitle { font-size: ${14 * fontSizeScale}px; color: #666; margin-bottom: ${15 * fontSizeScale}px; border-bottom: 2px solid #eee; padding-bottom: ${8 * fontSizeScale}px; }
+            .info-block { margin-bottom: ${12 * fontSizeScale}px; text-align: left; }
+            .label { font-size: ${10 * fontSizeScale}px; color: #888; text-transform: uppercase; font-weight: bold; }
+            .value { font-size: ${16 * fontSizeScale}px; font-weight: bold; margin-top: 1px; }
+            .appointment-time { background: ${brandColor}10; padding: ${12 * fontSizeScale}px; border-radius: 8px; margin: ${15 * fontSizeScale}px 0; border: 1px solid ${brandColor}30; }
+            .time-value { font-size: ${18 * fontSizeScale}px; color: ${brandColor}; font-weight: 900; }
+            .footer { margin-top: ${20 * fontSizeScale}px; font-size: ${11 * fontSizeScale}px; color: #888; }
+            .appointment-block { text-align: left; }
+            @media print {
+              body { padding: ${bodyPadding}; }
+            }
           </style>
         </head>
         <body>
           <div class="card">
             <div class="header">
-              ${logoUrl ? `<img src="${logoUrl}" class="logo" />` : `<div style="font-size: 20px; font-weight: bold; color: ${brandColor}">Clinic</div>`}
+              ${logoUrl ? `<img src="${logoUrl}" class="logo" />` : `<div style="font-size: ${20 * fontSizeScale}px; font-weight: bold; color: ${brandColor}">${branchName || tenantName || 'Clinic'}</div>`}
               <div class="title">ใบนัดหมาย</div>
               <div class="subtitle">Appointment Slip</div>
             </div>
 
-            <div class="info-block">
-              <div class="label">Patient / ชื่อสัตว์เลี้ยง</div>
-              <div class="value">${petName}</div>
-            </div>
-
-            <div class="info-block">
+            <div class="info-block" style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
               <div class="label">Owner / เจ้าของ</div>
               <div class="value">${customerName}</div>
             </div>
 
-            <div class="appointment-time">
-              <div class="label" style="color: ${brandColor}">Appointment Date / วันที่นัดหมาย</div>
-              <div class="time-value">${appointmentDate}</div>
-            </div>
-
-            <div class="info-block">
-              <div class="label">Reason / สาเหตุที่นัด</div>
-              <div class="value">${reason}</div>
-            </div>
-
-            ${vetName ? `
-            <div class="info-block">
-              <div class="label">With / นัดกับ</div>
-              <div class="value">${vetName}</div>
-            </div>
-            ` : ''}
+            ${appointmentsHtml}
 
             <div class="footer">
               Please arrive 10 minutes early.<br>
@@ -129,25 +198,44 @@ export function PrintAppointmentModal({
           </div>
           <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
             <h3 className="text-base font-semibold leading-6 text-gray-900 dark:text-white mb-2" id="modal-title">
-              พิมพ์ใบนัดหมาย
+              พิมพ์ใบนัดหมายรวม
             </h3>
-            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              ตรวจสอบวันและเวลานัดหมายก่อนสั่งพิมพ์
+            
+            <div className="mt-4 mb-4">
+              <label className="text-[10px] font-bold text-gray-400 block mb-2 uppercase tracking-wider">ขนาดกระดาษ (Paper Size)</label>
+              <div className="grid grid-cols-3 gap-2">
+                {paperSizes.map((size) => (
+                  <button
+                    key={size.id}
+                    onClick={() => setSelectedSize(size.id)}
+                    className={`py-2 px-1 text-[10px] font-bold rounded-md border transition-all ${
+                      selectedSize === size.id
+                        ? 'bg-orange-50 border-orange-500 text-orange-600 ring-2 ring-orange-500/10'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 dark:bg-gray-800'
+                    }`}
+                  >
+                    {size.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="mt-4 p-4 border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 rounded-md">
-              <div className="flex flex-col items-center text-center space-y-2">
-                <div className="text-[10px] text-orange-700 dark:text-orange-300 font-bold uppercase tracking-wider">ใบนัดหมายครั้งถัดไป</div>
-                <div className="text-lg font-bold text-gray-900 dark:text-white">
-                  {petName}
+            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              ตรวจสอบวันและเวลานัดหมายของสัตว์เลี้ยงแต่ละตัวก่อนสั่งพิมพ์
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {appointments.map((appt, idx) => (
+                <div key={idx} className="p-3 border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10 rounded-md">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">{appt.petName}</div>
+                      <div className="text-xs text-orange-700 dark:text-orange-400 font-semibold">{appt.date}</div>
+                    </div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 uppercase italic">เหตุผล: {appt.reason}</div>
+                  </div>
                 </div>
-                <div className="text-md font-bold text-orange-700 dark:text-orange-400">
-                  {appointmentDate}
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-300">
-                  เหตุผล: {reason}
-                </div>
-              </div>
+              ))}
             </div>
 
             <div className="mt-5 space-y-2">
@@ -159,7 +247,7 @@ export function PrintAppointmentModal({
                 สั่งพิมพ์ใบนัด (Print Slip)
               </button>
               <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-                ใบนัดจะถูกจัดรูปแบบสำหรับเครื่องพิมพ์สลิปความร้อน หรือกระดาษขนาดเล็ก
+                กรุณาเลือกขนาดกระดาษให้ตรงกับเครื่องพิมพ์ของคุณก่อนสั่งพิมพ์
               </p>
             </div>
           </div>

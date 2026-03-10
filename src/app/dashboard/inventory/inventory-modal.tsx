@@ -63,6 +63,7 @@ export function InventoryModal({ isOpen, onClose, initialData, branchId, branche
     usageEvening: false,
     usageNight: false,
     usageRemark: '',
+    isActive: true,
   });
 
   // Load Master Data
@@ -121,6 +122,7 @@ export function InventoryModal({ isOpen, onClose, initialData, branchId, branche
         usageEvening: false,
         usageNight: false,
         usageRemark: 'หยุดยาเมื่อหมดอาการ',
+        isActive: true,
       });
     }
     setError('');
@@ -512,6 +514,21 @@ export function InventoryModal({ isOpen, onClose, initialData, branchId, branche
                   value={formData.description || ''}
                   onChange={handleChange as any}
                 />
+              </div>
+
+              <div className="md:col-span-2 flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                <input
+                    type="checkbox"
+                    id="isActive"
+                    name="isActive"
+                    checked={formData.isActive || false}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    className="w-5 h-5 rounded text-brand bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-brand"
+                    style={{ accentColor: brandColor }}
+                />
+                <label htmlFor="isActive" className="text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
+                    เปิดใช้งานรายการนี้
+                </label>
               </div>
             </div>
           </form>

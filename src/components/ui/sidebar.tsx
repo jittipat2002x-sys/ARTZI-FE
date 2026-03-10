@@ -27,6 +27,8 @@ import { authService } from '@/services/auth.service';
 import { useBranding } from '@/contexts/branding-context';
 import { useRouter } from 'next/navigation';
 import { AlertModal } from '@/components/ui/modal';
+import { useAuthMe, useMenus } from '@/hooks/use-global-data';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Map icon name strings from DB to actual Lucide icons
 const iconMap: Record<string, any> = {
@@ -63,49 +65,12 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const [user, setUser] = useState<any>(null);
-  const [menus, setMenus] = useState<ApiMenu[]>([]);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const { logoUrl: brandingLogo, brandColor } = useBranding();
-
-  useEffect(() => {
-    const loadUserData = async () => {
-      const currentLocalUser = authService.getUser();
-      if (currentLocalUser) {
-        setUser(currentLocalUser);
-      }
-      
-      // Refresh from server to get latest branch/tenant info
-      const refreshedUser = await authService.me();
-      if (refreshedUser) {
-        setUser(refreshedUser);
-      }
-    };
-
-    loadUserData();
-
-    // Fetch menus from backend based on the user's role
-    const fetchMenus = async () => {
-      try {
-        const token = authService.getToken();
-        if (!token) return;
-        
-        const res = await fetch('http://localhost:3100/api/auth/me/menus', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          const menuData = json.data || json; // รองรับทั้ง { data: [...] } และ [...]
-          setMenus(Array.isArray(menuData) ? menuData : []);
-        }
-      } catch (e) {
-        console.error('Failed to fetch menus:', e);
-      }
-    };
-
-    fetchMenus();
-  }, []);
+  const { data: user } = useAuthMe();
+  const { data: menus = [] } = useMenus();
 
   const toggleExpand = (title: string) => {
     setExpandedItems(prev => 
@@ -117,6 +82,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const handleLogout = () => {
     authService.logout();
+    queryClient.clear();
     router.push('/login');
   };
 
@@ -212,7 +178,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
             <div className="flex flex-col min-w-0">
               <h2 className="text-sm font-bold text-gray-900 dark:text-white truncate leading-tight">
-                {user?.branchName || user?.tenantName || 'ARTZI PROJECT'}
+                {user?.branchName || user?.tenantName || 'PetHeart'}
               </h2>
               <span className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
                 {user?.roleDescription || user?.role?.replace('_', ' ') || 'User'}

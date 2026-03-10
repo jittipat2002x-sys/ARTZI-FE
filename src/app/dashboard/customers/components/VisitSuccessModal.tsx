@@ -13,7 +13,7 @@ interface VisitSuccessModalProps {
   customerName: string;
   onPrintLabels: () => void;
   onPrintInvoice: () => void;
-  onPrintAppointment: (petId: string) => void;
+  onPrintAppointment: () => void;
 }
 
 export function VisitSuccessModal({
@@ -29,9 +29,43 @@ export function VisitSuccessModal({
 
   if (!isOpen || !visitData) return null;
 
-  const hasInvoice = !!visitData.invoice;
-  const petsWithAppts = visitData.medicalRecords?.filter((r: any) => !!r.nextAppointmentDate) || [];
-  const hasLabels = visitData.medicalRecords?.some((r: any) => r.medications?.length > 0) || false;
+  // Robustly handle cases where visitData might be nested or have different naming
+  const actualData = visitData.data || visitData;
+  const appointments = actualData.appointments || [];
+  const medicalRecords = actualData.medicalRecords || actualData.medical_records || [];
+  const hasInvoice = !!(actualData.invoice || actualData.invoiceId);
+  const hasLabels = medicalRecords.some((r: any) => (r.medications?.length > 0 || r.treatments?.length > 0)) || false;
+
+  // Consolidate appointments from both relation and medical records (for robustness)
+  const appointmentsData: any[] = [];
+  const seenPetIds = new Set();
+
+  // 1. Check direct appointments relation (Preferred)
+  appointments.forEach((a: any) => {
+    if (!seenPetIds.has(a.petId)) {
+      appointmentsData.push({
+        petId: a.petId,
+        petName: a.pet?.name || 'สัตว์เลี้ยง',
+        date: a.date
+      });
+      seenPetIds.add(a.petId);
+    }
+  });
+
+  // 2. Fallback to medical records if no appointments found in relation
+  if (appointmentsData.length === 0) {
+    medicalRecords.forEach((r: any) => {
+      const apptDate = r.nextAppointmentDate || r.next_appointment_date;
+      if (apptDate && !seenPetIds.has(r.petId)) {
+        appointmentsData.push({
+          petId: r.petId,
+          petName: r.pet?.name || 'สัตว์เลี้ยง',
+          date: apptDate
+        });
+        seenPetIds.add(r.petId);
+      }
+    });
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="sm:max-w-lg" wrapperClassName="!z-[100]">
@@ -87,10 +121,9 @@ export function VisitSuccessModal({
                 </button>
               )}
 
-              {petsWithAppts.map((record: any) => (
+              {appointmentsData.length > 0 && (
                 <button
-                  key={record.petId}
-                  onClick={() => onPrintAppointment(record.petId)}
+                  onClick={onPrintAppointment}
                   className="flex items-center justify-between p-3 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 border border-orange-100 dark:border-orange-800 transition-all group"
                 >
                   <div className="flex items-center gap-3">
@@ -98,13 +131,13 @@ export function VisitSuccessModal({
                       <Calendar size={18} />
                     </div>
                     <div className="text-left">
-                      <div className="text-sm font-bold text-orange-900 dark:text-orange-100">พิมพ์ใบนัดหมาย ({record.pet?.name || 'สัตว์เลี้ยง'})</div>
-                      <div className="text-[10px] text-orange-600/70">วันที่นัด: {new Date(record.nextAppointmentDate).toLocaleDateString('th-TH')}</div>
+                      <div className="text-sm font-bold text-orange-900 dark:text-orange-100">พิมพ์ใบนัดหมายรวม</div>
+                      <div className="text-[10px] text-orange-600/70">ใบนัดสำหรับสัตว์เลี้ยงทุกตัวในรอบนี้</div>
                     </div>
                   </div>
                   <div className="text-orange-400 group-hover:translate-x-1 transition-transform">→</div>
                 </button>
-              ))}
+              )}
             </div>
           </div>
         </div>

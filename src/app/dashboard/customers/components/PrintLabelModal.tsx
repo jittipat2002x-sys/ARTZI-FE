@@ -27,7 +27,15 @@ export function PrintLabelModal({
   customerName,
   items
 }: PrintLabelModalProps) {
-  const { brandColor } = useBranding();
+  const { brandColor, branchName, tenantName } = useBranding();
+  const [selectedSize, setSelectedSize] = React.useState({ width: 80, height: 50, label: '80 x 50 mm' });
+
+  const labelSizes = [
+    { width: 50, height: 30, label: '50 x 30 mm' },
+    { width: 60, height: 40, label: '60 x 40 mm' },
+    { width: 70, height: 50, label: '70 x 50 mm' },
+    { width: 80, height: 50, label: '80 x 50 mm' },
+  ];
 
   if (!isOpen) return null;
 
@@ -87,6 +95,19 @@ export function PrintLabelModal({
 
     const today = new Date().toLocaleDateString('th-TH');
 
+    // Dynamic Font Sizes based on width
+    const scale = selectedSize.width / 80;
+    const fontSizes = {
+      header: Math.max(10, Math.floor(13 * scale)),
+      subHeader: Math.max(8, Math.floor(10 * scale)),
+      content: Math.max(9, Math.floor(11 * scale)),
+      directions: Math.max(8, Math.floor(10 * scale)),
+      footer: Math.max(7, Math.floor(8 * scale)),
+      padding: Math.max(8, Math.floor(16 * scale)),
+      spacing: Math.max(4, Math.floor(10 * scale)),
+      labelPadding: Math.max(4, Math.floor(6 * scale)),
+    };
+
     const labelsHtml = items.map((item) => {
       const parts = item.usageInstructions.split('|').map(s => s.trim());
       const th = parts[0] || '';
@@ -100,8 +121,8 @@ export function PrintLabelModal({
       let directionsHtml = '';
       if (mode === 'BOTH') {
         directionsHtml = `
-          <div style="margin-bottom: 4px;">${th}</div>
-          <div style="font-style: italic; color: #666; border-top: 1px dashed #ddd; padding-top: 4px; margin-top: 4px;">${en}</div>
+          <div style="margin-bottom: 2px;">${th}</div>
+          <div style="font-style: italic; color: #666; border-top: 1px dashed #ddd; padding-top: 2px; margin-top: 2px;">${en}</div>
         `;
       } else if (mode === 'EN') {
         directionsHtml = `<div>${en}</div>`;
@@ -111,24 +132,26 @@ export function PrintLabelModal({
 
       return `
         <div class="label-card">
-          <div style="font-weight: bold; font-size: 18px; border-bottom: 3px solid ${brandColor}; padding-bottom: 8px; margin-bottom: 15px; text-align: center; color: ${brandColor};">
-            ฉลากยา / Medication Label
+          <div style="font-weight: bold; font-size: ${fontSizes.header}px; border-bottom: 2px solid ${brandColor}; padding-bottom: 4px; margin-bottom: ${fontSizes.spacing}px; text-align: center; color: ${brandColor};">
+            ${branchName || tenantName || 'ฉลากยา / Medication Label'}
           </div>
-          <div style="font-size: 13px; margin-bottom: 10px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+          <div style="font-size: ${fontSizes.subHeader}px; margin-bottom: 6px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 3px;">
             <div style="display: flex; justify-content: space-between;">
               <span><strong>PET:</strong> ${petName || '-'}</span>
               <span><strong>OWNER:</strong> ${customerName || '-'}</span>
             </div>
           </div>
-          <div style="font-size: 15px; margin-bottom: 8px;"><strong>ITEM:</strong> ${item.name}</div>
-          <div style="font-size: 15px; margin-bottom: 8px;"><strong>QTY:</strong> ${item.quantity}</div>
-          <div style="font-size: 15px; margin-bottom: 8px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
-            <strong style="color: ${brandColor}; display: block; margin-bottom: 4px; font-size: 12px; border-bottom: 1px solid ${brandColor}20;">DIRECTIONS:</strong> 
-            <div style="outline: none;">
+          <div style="font-size: ${fontSizes.content}px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+            <span><strong>ITEM:</strong> ${item.name}</span>
+            <span style="font-size: ${fontSizes.subHeader}px; color: #444;"><strong>QTY:</strong> ${item.quantity}</span>
+          </div>
+          <div style="font-size: ${fontSizes.content}px; margin-bottom: 4px; background: #f9f9f9; padding: ${fontSizes.labelPadding}px ${fontSizes.labelPadding * 1.5}px; border-radius: 4px; border: 1px solid #eee;">
+            <strong style="color: ${brandColor}; display: block; margin-bottom: 2px; font-size: ${fontSizes.directions}px; border-bottom: 1px solid ${brandColor}20;">DIRECTIONS:</strong> 
+            <div style="outline: none; line-height: 1.1;">
               ${directionsHtml}
             </div>
           </div>
-          <div style="margin-top: 15px; font-size: 10px; color: #888; text-align: right; border-top: 1px solid #f0f0f0; padding-top: 5px;">
+          <div style="margin-top: 8px; font-size: ${fontSizes.footer}px; color: #888; text-align: right; border-top: 1px solid #f0f0f0; padding-top: 3px;">
             DATE: ${today}
           </div>
         </div>
@@ -144,9 +167,34 @@ export function PrintLabelModal({
         <head>
           <title>Print Label</title>
           <style>
-            @page { margin: 5mm; }
-            body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
-            .label-card { background: white; border: 1px solid #000; padding: 20px; width: 80mm; min-height: 50mm; box-sizing: border-box; margin-bottom: 10mm; page-break-inside: avoid; }
+            @page { 
+              size: ${selectedSize.width}mm ${selectedSize.height}mm;
+              margin: 0; 
+            }
+            body { 
+              font-family: 'Inter', sans-serif; 
+              margin: 0; 
+              padding: 0; 
+              display: flex; 
+              flex-direction: column; 
+              align-items: center; 
+              background: #f0f0f0;
+            }
+            .label-card { 
+              background: white; 
+              padding: ${fontSizes.padding}px; 
+              width: ${selectedSize.width}mm; 
+              height: ${selectedSize.height}mm; 
+              box-sizing: border-box; 
+              page-break-after: always;
+              overflow: hidden;
+              display: flex;
+              flex-direction: column;
+            }
+            @media print {
+              body { background: none; }
+              .label-card { border: none; }
+            }
           </style>
         </head>
         <body>
@@ -178,10 +226,35 @@ export function PrintLabelModal({
             <h3 className="text-base font-semibold leading-6 text-gray-900 dark:text-white mb-2" id="modal-title">
               พิมพ์ฉลากยา
             </h3>
-            <div className="mt-2 mb-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                เลือกภาษาที่ต้องการใช้พิมพ์ฉลาก
+            
+            {/* Size Selection */}
+            <div className="mt-4 mb-6">
+              <label className="text-xs font-bold text-gray-400 block mb-2 uppercase tracking-wider">ขนาดสติกเกอร์ (Label Size)</label>
+              <div className="grid grid-cols-3 gap-2">
+                {labelSizes.map((size) => (
+                  <button
+                    key={size.label}
+                    onClick={() => setSelectedSize(size)}
+                    className={`py-2 px-1 text-[10px] font-bold rounded-md border transition-all ${
+                      selectedSize.label === size.label
+                        ? 'bg-blue-50 border-blue-500 text-blue-600 ring-2 ring-blue-500/10'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 dark:bg-gray-800'
+                    }`}
+                  >
+                    {size.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                <strong>คำแนะนำ:</strong> ในหน้าตั้งค่าการพิมพ์ กรุณาตั้งค่า <strong>Margins</strong> เป็น <strong>"None"</strong> และตรวจสอบว่าเลือก <strong>Paper size</strong> ตรงกับขนาดที่เลือกด้านบน เพื่อไม่ให้ฉลากถูกตัดขอบครับ
               </p>
+            </div>
+
+            <div className="mt-2 mb-4">
+              <label className="text-xs font-bold text-gray-400 block mb-2 uppercase tracking-wider">เลือกภาษา (Select Language)</label>
             </div>
 
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-100 dark:border-blue-800 mb-4">

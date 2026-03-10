@@ -63,5 +63,10 @@ export const customerService = {
     async deleteCustomer(id: string) {
         const result = await apiClient.delete<void>(`/customers/${id}`);
         return result.data;
+    },
+
+    async createPet(customerId: string, data: Partial<Pet>) {
+        const result = await apiClient.post<Pet>(`/customers/${customerId}/pets`, data);
+        return result.data;
     }
 };

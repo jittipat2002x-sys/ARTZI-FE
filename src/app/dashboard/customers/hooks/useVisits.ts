@@ -22,6 +22,16 @@ export interface CreateVisitDto {
             unitPrice: number;
             usageInstructions?: string;
         }>;
+        labTests?: Array<{
+            testType: string;
+            result?: string;
+            notes?: string;
+            files?: Array<{
+                name: string;
+                base64Data: string;
+                contentType: string;
+            }>;
+        }>;
     }>;
     generalItems?: Array<{
         productId?: string;

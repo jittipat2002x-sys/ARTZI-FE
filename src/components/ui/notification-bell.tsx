@@ -4,19 +4,41 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Bell, PackageX, CalendarClock } from 'lucide-react';
 import { inventoryService } from '@/services/inventory.service';
 import { appointmentService } from '@/services/appointment.service';
+import { authService } from '@/services/auth.service';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useBranding } from '@/contexts/branding-context';
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { brandColor } = useBranding();
 
-  useEffect(() => {
-    fetchNotifications();
+  const user = authService.getUser();
+  const isSaaSAdmin = user?.role === 'SAAS_ADMIN';
 
+  const { data: appointments = [] } = useQuery({
+    queryKey: ['notifications', 'appointments'],
+    queryFn: async () => {
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+      const res = await appointmentService.getAppointments(1, 100, 'SCHEDULED', 'all', today);
+      return res?.data || [];
+    },
+    enabled: !isSaaSAdmin,
+    staleTime: 60 * 1000, // 1 minute
+  });
+
+  const { data: lowStockItems = [] } = useQuery({
+    queryKey: ['notifications', 'low-stock'],
+    queryFn: async () => {
+      const res = await inventoryService.getInventories('all', undefined, undefined, undefined, 1, 100, true, true);
+      return res?.data || [];
+    },
+    enabled: !isSaaSAdmin,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -25,33 +47,6 @@ export function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      // Fetch today's appointments
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date()); // YYYY-MM-DD
-      const apptsRes = await appointmentService.getAppointments(1, 100, 'SCHEDULED', 'all', today);
-      if (apptsRes?.data) {
-        setAppointments(apptsRes.data);
-      }
-
-      // Fetch stock alerts
-      const invRes = await inventoryService.getInventories(
-        'all',
-        undefined,
-        undefined,
-        undefined,
-        1,
-        100,
-        true // stockAlert
-      );
-      if (invRes?.data) {
-        setLowStockItems(invRes.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch notifications', error);
-    }
-  };
 
   const notificationCount = appointments.length + lowStockItems.length;
 

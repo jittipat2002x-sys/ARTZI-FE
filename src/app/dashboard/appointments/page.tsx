@@ -24,6 +24,7 @@ import {
   Stethoscope,
   History,
 } from 'lucide-react';
+import { CreateAppointmentForm } from './components/CreateAppointmentForm';
 
 interface GroupedAppointment {
   id: string; // Combined ID for React keys, usually just customerId_date
@@ -41,11 +42,15 @@ export default function AppointmentsPage() {
   // Filters
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const prevSearch = React.useRef(search);
 
   // Modals
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<GroupedAppointment | null>(null);
   const [selectedAppointmentIds, setSelectedAppointmentIds] = useState<string[]>([]);
   const [newDate, setNewDate] = useState<string>('');
@@ -84,7 +89,7 @@ export default function AppointmentsPage() {
   const loadAppointments = async (page = 1) => {
     setLoading(true);
     try {
-      const response = await appointmentService.getAppointments(page, 10, statusFilter, selectedBranchId);
+      const response = await appointmentService.getAppointments(page, 10, statusFilter, selectedBranchId, selectedDate || undefined, search);
       
       let items: any[] = [];
       let totalPagesCount = 1;
@@ -144,12 +149,19 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     setUser(authService.getUser());
-    loadAppointments(1);
   }, []);
 
   useEffect(() => {
-    loadAppointments(currentPage);
-  }, [currentPage, selectedBranchId, statusFilter]);
+    const isTyping = search !== prevSearch.current;
+    prevSearch.current = search;
+    const delay = isTyping ? 500 : 0;
+
+    const timeoutId = setTimeout(() => {
+      loadAppointments(currentPage);
+    }, delay);
+
+    return () => clearTimeout(timeoutId);
+  }, [currentPage, selectedBranchId, statusFilter, search, selectedDate]);
 
   const handleUpdateStatus = async (group: GroupedAppointment, status: Appointment['status']) => {
     const scheduledApps = group.originalAppointments.filter(a => a.status === 'SCHEDULED');
@@ -360,21 +372,6 @@ export default function AppointmentsPage() {
                       const scheduledApps = group.originalAppointments.filter(a => a.status === 'SCHEDULED');
                       if (scheduledApps.length > 1) {
                         setPartialSelectedIds(scheduledApps.map(a => a.id));
-                        setPartialActionModal({ isOpen: true, group, status: 'COMPLETED' });
-                      } else {
-                        handleUpdateStatus(group, 'COMPLETED');
-                      }
-                    }}
-                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    title="เสร็จสิ้น"
-                  >
-                    <CheckCircle size={18} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      const scheduledApps = group.originalAppointments.filter(a => a.status === 'SCHEDULED');
-                      if (scheduledApps.length > 1) {
-                        setPartialSelectedIds(scheduledApps.map(a => a.id));
                         setPartialActionModal({ isOpen: true, group, status: 'CANCELLED' });
                       } else {
                         handleUpdateStatus(group, 'CANCELLED');
@@ -420,26 +417,44 @@ export default function AppointmentsPage() {
             รายการนัดหมายล่วงหน้าและประวัติการนัดหมาย
           </p>
         </div>
+        <BrandButton
+          onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
+          className="rounded-full px-6 shadow-md whitespace-nowrap"
+        >
+          {isCreateFormOpen ? '- ปิดฟอร์ม' : '+ สร้างนัดหมาย'}
+        </BrandButton>
       </div>
 
-      <div className="flex flex-col lg:flex-row lg:items-end gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-none border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="w-full lg:w-48">
-          <label className="text-xs font-medium text-gray-500 mb-1 block">สถานะ</label>
-          <select
-            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none dark:text-gray-300 transition-all"
-            value={statusFilter}
-            onChange={e => {
-              setStatusFilter(e.target.value);
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-none border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="w-full">
+          <label className="text-xs font-medium text-gray-500 mb-1 block">ค้นหา</label>
+          <BrandInput
+            placeholder="ค้นหาชื่อสัตว์เลี้ยง, เจ้าของ, หรือเบอร์โทร..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
               setCurrentPage(1);
             }}
-          >
-            <option value="all">ทั้งหมด</option>
-            <option value="SCHEDULED">รอดำเนินการ</option>
-            <option value="COMPLETED">เสร็จสิ้น</option>
-            <option value="CANCELLED">ยกเลิก</option>
-          </select>
+          />
         </div>
-        <div className="w-full lg:w-72">
+        <div className="w-full">
+          <label className="text-xs font-medium text-gray-500 mb-1 block">สถานะ</label>
+          <SearchableSelect
+            options={[
+              { id: 'all', name: 'ทั้งหมด' },
+              { id: 'SCHEDULED', name: 'รอดำเนินการ' },
+              { id: 'COMPLETED', name: 'เสร็จสิ้น' },
+              { id: 'CANCELLED', name: 'ยกเลิก' },
+            ]}
+            value={statusFilter}
+            onChange={(val) => {
+              setStatusFilter(val);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="ค้นหาสถานะ..."
+          />
+        </div>
+        <div className="w-full">
           <label className="text-xs font-medium text-gray-500 mb-1 block">กรองตามสาขา</label>
           <SearchableSelect
             options={[
@@ -458,7 +473,27 @@ export default function AppointmentsPage() {
             icon={MapPin}
           />
         </div>
+        <div className="w-full">
+          <label className="text-xs font-medium text-gray-500 mb-1 block">วันที่</label>
+          <ThaiDateInput
+            value={selectedDate}
+            onChange={(val) => {
+              setSelectedDate(val);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
       </div>
+
+      {isCreateFormOpen && (
+        <CreateAppointmentForm
+          onCancel={() => setIsCreateFormOpen(false)}
+          onSuccess={() => {
+            setIsCreateFormOpen(false);
+            loadAppointments();
+          }}
+        />
+      )}
 
       <DataTable
         columns={columns}
