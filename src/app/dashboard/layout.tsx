@@ -5,7 +5,8 @@ import { Sidebar } from '@/components/ui/sidebar';
 import { Alert } from '@/components/ui/alert';
 import { authService } from '@/services/auth.service';
 import Link from 'next/link';
-import { Menu, Search, Sun, Moon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Menu, Search, Sun, Moon, Loader2 } from 'lucide-react';
 import { useTheme } from '@/contexts/theme-context';
 import { NotificationBell } from '@/components/ui/notification-bell';
 
@@ -16,13 +17,29 @@ export default function DashboardLayout({
 }) {
   const [user, setUser] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
 
   useEffect(() => {
-    setUser(authService.getUser());
-  }, []);
+    const currentUser = authService.getUser();
+    if (!currentUser) {
+      router.push('/');
+    } else {
+      setUser(currentUser);
+      setIsLoading(false);
+    }
+  }, [router]);
 
   const isGracePeriod = user?.subscriptionStatus === 'grace_period';
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">

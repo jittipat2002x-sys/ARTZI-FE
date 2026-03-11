@@ -331,7 +331,7 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
             setPrintingItems([]);
           }}
           petName={activeRecord.pet?.name || ''}
-          customerName={activeRecord.customer?.firstName + ' ' + (activeRecord.customer?.lastName || '')}
+          customerName={(activeRecord.customer?.firstName || activeRecord.visit?.customer?.firstName || activeRecord.pet?.customer?.firstName || 'Unknown') + ' ' + (activeRecord.customer?.lastName || activeRecord.visit?.customer?.lastName || activeRecord.pet?.customer?.lastName || '')}
           items={printingItems}
         />
       )}
@@ -343,7 +343,7 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
             setIsInvoiceModalOpen(false);
             setActiveRecord(null);
           }}
-          customerName={activeRecord.visit.customer?.firstName + ' ' + (activeRecord.visit.customer?.lastName || '')}
+          customerName={(activeRecord.visit?.customer?.firstName || activeRecord.customer?.firstName || activeRecord.pet?.customer?.firstName || 'Unknown') + ' ' + (activeRecord.visit?.customer?.lastName || activeRecord.customer?.lastName || activeRecord.pet?.customer?.lastName || '')}
           petNames={activeRecord.pet?.name || ''}
           invoiceDate={new Date(activeRecord.visit.invoice.createdAt).toLocaleDateString('th-TH')}
           invoiceNumber={activeRecord.visit.invoice.id.slice(0, 8).toUpperCase()}
@@ -371,7 +371,7 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
             setSelectedAppt(null);
             setActiveRecord(null);
           }}
-          customerName={activeRecord.visit?.customer?.firstName + ' ' + (activeRecord.visit?.customer?.lastName || '')}
+          customerName={(activeRecord.visit?.customer?.firstName || activeRecord.customer?.firstName || activeRecord.pet?.customer?.firstName || 'Unknown') + ' ' + (activeRecord.visit?.customer?.lastName || activeRecord.customer?.lastName || activeRecord.pet?.customer?.lastName || '')}
           appointments={[{
             petName: activeRecord.pet?.name || 'Unknown',
             date: new Date(selectedAppt.date).toLocaleString('th-TH', { 

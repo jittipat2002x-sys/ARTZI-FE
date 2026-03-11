@@ -10,10 +10,12 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Database, Plus, Edit2, Trash2, Pill, Package, Ruler, Clock } from 'lucide-react';
 import { authService } from '@/services/auth.service';
 import { useRouter } from 'next/navigation';
+import { useBranding } from '@/contexts/branding-context';
 
 type TabType = 'PRODUCT_CAT' | 'MEDICINE_CAT' | 'UNIT' | 'USAGE';
 
 export default function MasterDataPage() {
+    const { brandColor } = useBranding();
     const [activeTab, setActiveTab] = useState<TabType>('PRODUCT_CAT');
     const [loading, setLoading] = useState(true);
     const router = useRouter();
@@ -168,7 +170,7 @@ export default function MasterDataPage() {
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <Database className="h-7 w-7 text-brand" /> จัดการข้อมูลหลัก (Master Data)
+                        <Database className="h-7 w-7" style={{ color: brandColor }} /> จัดการข้อมูลหลัก (Master Data)
                     </h1>
                     <p className="text-sm text-gray-500 mt-1">ตั้งค่าชื่อไทย-อังกฤษ และตัวเลือกต่างๆ สำหรับระบบคลังยา</p>
                 </div>
@@ -182,11 +184,11 @@ export default function MasterDataPage() {
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as TabType)}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                            activeTab === tab.id 
-                                ? 'bg-white dark:bg-gray-700 text-brand shadow-sm' 
-                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all"
+                        style={activeTab === tab.id 
+                                ? { backgroundColor: 'white', color: brandColor, boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }
+                                : { color: '#6B7280' }
+                        }
                     >
                         <tab.icon size={16} />
                         {tab.name}

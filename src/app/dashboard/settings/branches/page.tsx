@@ -90,7 +90,7 @@ export default function BranchesPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Building className="h-8 w-8 text-brand dark:text-emerald-400" /> จัดการสาขาของคลินิก
+            <Building className="h-8 w-8" style={{ color: brandColor }} /> จัดการสาขาของคลินิก
           </h1>
           <p className="mt-1 text-gray-500 dark:text-gray-400 text-sm">คุณสามารถเพิ่มหรือแก้ไขข้อมูลสาขาที่เปิดให้บริการได้ที่นี่</p>
         </div>
@@ -173,7 +173,7 @@ export default function BranchesPage() {
           <div className="bg-white dark:bg-gray-800 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">
               <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-brand/10 dark:bg-emerald-500/10 sm:mx-0 sm:h-10 sm:w-10">
-                <Building className="h-6 w-6 text-brand dark:text-emerald-400" aria-hidden="true" />
+                <Building className="h-6 w-6" style={{ color: brandColor }} aria-hidden="true" />
               </div>
               <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
                 <h3 className="text-base font-semibold leading-6 text-gray-900 dark:text-white" id="modal-title">

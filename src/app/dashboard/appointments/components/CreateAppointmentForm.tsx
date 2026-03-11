@@ -224,13 +224,15 @@ export function CreateAppointmentForm({ onCancel, onSuccess, initialDate }: Crea
           <div className="flex p-1 bg-gray-100 dark:bg-gray-900 rounded-lg">
             <button
               onClick={() => setMode('EXISTING')}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${mode === 'EXISTING' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+              className="flex-1 py-1.5 text-sm font-medium rounded-md transition-all"
+              style={mode === 'EXISTING' ? { backgroundColor: 'white', color: brandColor, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' } : { color: '#6B7280' }}
             >
               เลือกลูกค้าเดิม
             </button>
             <button
               onClick={() => setMode('NEW')}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${mode === 'NEW' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+              className="flex-1 py-1.5 text-sm font-medium rounded-md transition-all"
+              style={mode === 'NEW' ? { backgroundColor: 'white', color: brandColor, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' } : { color: '#6B7280' }}
             >
               เพิ่มลูกค้าใหม่
             </button>
@@ -407,7 +409,15 @@ export function CreateAppointmentForm({ onCancel, onSuccess, initialDate }: Crea
                                   <select
                                     value={pet.species}
                                     onChange={(e) => updatePet(index, 'species', e.target.value)}
-                                    className="w-full px-4 py-3 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none"
+                                    className="w-full px-4 py-3 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none transition-all"
+                                    onFocus={(e) => {
+                                      e.currentTarget.style.borderColor = brandColor;
+                                      e.currentTarget.style.boxShadow = `0 0 0 2px ${brandColor}33`;
+                                    }}
+                                    onBlur={(e) => {
+                                      e.currentTarget.style.borderColor = '';
+                                      e.currentTarget.style.boxShadow = 'none';
+                                    }}
                                   >
                                     <option value="สุนัข">สุนัข</option>
                                     <option value="แมว">แมว</option>
@@ -421,7 +431,15 @@ export function CreateAppointmentForm({ onCancel, onSuccess, initialDate }: Crea
                                   <select
                                     value={pet.sex}
                                     onChange={(e) => updatePet(index, 'sex', e.target.value)}
-                                    className="w-full px-4 py-3 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none"
+                                    className="w-full px-4 py-3 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none transition-all"
+                                    onFocus={(e) => {
+                                      e.currentTarget.style.borderColor = brandColor;
+                                      e.currentTarget.style.boxShadow = `0 0 0 2px ${brandColor}33`;
+                                    }}
+                                    onBlur={(e) => {
+                                      e.currentTarget.style.borderColor = '';
+                                      e.currentTarget.style.boxShadow = 'none';
+                                    }}
                                   >
                                     <option value="M">ผู้ (Male)</option>
                                     <option value="F">เมีย (Female)</option>
@@ -497,9 +515,11 @@ export function CreateAppointmentForm({ onCancel, onSuccess, initialDate }: Crea
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">เหตุผลการนัดหมาย</label>
-                <textarea
-                  className="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none dark:text-gray-300 transition-all resize-none h-24"
+                <BrandInput
+                  label="เหตุผลการนัดหมาย"
+                  multiline
+                  rows={3}
+                  className="resize-none"
                   placeholder="ระบุเหตุผลการนัดหมาย (เช่น ฉีดวัคซีน, ติดตามอาการ)..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}

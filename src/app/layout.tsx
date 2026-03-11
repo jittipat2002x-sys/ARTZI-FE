@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   title: "PetHeart",
   description: "ระบบบริหารจัดการคลินิกสัตวแพทย์",
   icons: {
-    icon: "/heart-icon.png",
+    icon: "/img/image__1_-removebg-preview.png",
   },
 };
 

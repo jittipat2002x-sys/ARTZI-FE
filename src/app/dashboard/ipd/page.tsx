@@ -651,7 +651,7 @@ export default function IpdPage() {
            </div>
         </div>
 
-        <div className="p-8 pt-12">
+        <div className="p-8 pt-12 pb-2">
            <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-none">{selectedAdmission?.pet?.name}</h3>
@@ -704,7 +704,7 @@ export default function IpdPage() {
               )}
            </div>
 
-         <div className="p-8 pt-4 flex flex-col gap-3">
+         <div className="p-8 pt-2 flex flex-col gap-3">
           <div className="flex gap-3">
             <BrandButton 
                 variant="outline"

@@ -4,9 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { InventoryItem, inventoryService, PRODUCT_TYPE_OPTIONS, MEDICINE_TYPE_OPTIONS } from '@/services/inventory.service';
 import { branchService } from '@/services/admin.service';
 import { useBranches, useAuthMe } from '@/hooks/use-global-data';
+import { useBranding } from '@/contexts/branding-context';
 import { useQuery } from '@tanstack/react-query';
 import { BrandButton } from '@/components/ui/brand-button';
-import { Plus, Edit2, Trash2, PackageSearch, Building2, LayoutGrid, Pill } from 'lucide-react';
+import { Plus, Edit2, Trash2, PackageSearch, Package, Building2, LayoutGrid, Pill } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { AlertModal } from '@/components/ui/modal';
 import { BrandInput } from '@/components/ui/brand-input';
@@ -15,6 +16,7 @@ import { InventoryModal } from './inventory-modal';
 import { DataTable, Column } from '@/components/ui/data-table';
 
 export default function InventoryPage() {
+  const { brandColor } = useBranding();
   const [inventories, setInventories] = useState<InventoryItem[]>([]);
   const [branchId, setBranchId] = useState<string>('');
   const [type, setType] = useState<string>('');
@@ -275,7 +277,10 @@ export default function InventoryPage() {
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => handleEdit(item)}
-            className="p-1.5 text-gray-500 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
+            className="p-1.5 text-gray-500 rounded-lg transition-colors"
+            style={{ '--hover-bg': brandColor + '15', '--hover-text': brandColor } as any}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = brandColor + '15'; e.currentTarget.style.color = brandColor; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = ''; }}
             title="แก้ไข"
           >
             <Edit2 size={16} />
@@ -296,7 +301,9 @@ export default function InventoryPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">คลังสินค้าและบริการ</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Package size={28} style={{ color: brandColor }} /> คลังสินค้าและบริการ
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             จัดการข้อมูลยา, วัคซีน, สินค้า และบริการของคลินิก
           </p>

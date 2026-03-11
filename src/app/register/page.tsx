@@ -105,9 +105,17 @@ export default function RegisterPage() {
         style={{ backgroundColor: brandColor }}
       >
         <div className="relative z-10">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center font-bold text-2xl" style={{ color: brandColor }}>P</div>
-            <span className="text-white text-2xl font-bold tracking-tight">PetHeart</span>
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
+              <Image 
+                src="/img/image__1_-removebg-preview.png" 
+                alt="PetHeart Logo" 
+                width={32} 
+                height={32}
+                className="object-contain"
+              />
+            </div>
+            <span className="text-white text-2xl font-black tracking-tighter">PetHeart</span>
           </Link>
           <div className="mt-20">
             <h1 className="text-4xl font-bold text-white leading-tight">
@@ -195,7 +203,7 @@ export default function RegisterPage() {
                     required
                     {...register('clinicName')}
                     error={errors.clinicName?.message}
-                    placeholder="เช่น PetHeart สหคลินิก"
+                    placeholder="เช่น PetHeart คลินิก"
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <Input
