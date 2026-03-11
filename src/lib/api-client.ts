@@ -22,37 +22,48 @@ async function request<T = unknown>(
         ...customHeaders,
     };
 
+    const isPostRequest = options.method?.toUpperCase() === 'POST';
+
     // Auto-attach token
     if (typeof window !== 'undefined') {
         const token = localStorage.getItem('access_token');
         if (token) {
             (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
         }
-    }
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...restOptions,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-    });
-
-    // Handle 401 Unauthorized — clear token and redirect (only if not already on login page)
-    if (response.status === 401) {
-        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
+        if (isPostRequest) {
+            window.dispatchEvent(new Event('api:start'));
         }
-        const errorData = await response.json().catch(() => null);
-        throw { message: errorData?.message || 'Unauthorized: Invalid credentials', status: 401 };
     }
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw { message: errorData?.message || `Request failed with status ${response.status}`, status: response.status };
-    }
+    try {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            ...restOptions,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+        });
 
-    return response.json();
+        // Handle 401 Unauthorized — clear token and redirect (only if not already on login page)
+        if (response.status === 401) {
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            }
+            const errorData = await response.json().catch(() => null);
+            throw { message: errorData?.message || 'Unauthorized: Invalid credentials', status: 401 };
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            throw { message: errorData?.message || `Request failed with status ${response.status}`, status: response.status };
+        }
+
+        return await response.json();
+    } finally {
+        if (typeof window !== 'undefined' && isPostRequest) {
+            window.dispatchEvent(new Event('api:end'));
+        }
+    }
 }
 
 /**
@@ -73,26 +84,37 @@ export async function fetchWithAuth(
         headers.set('Content-Type', 'application/json');
     }
 
+    const isPostRequest = options.method?.toUpperCase() === 'POST';
+
     if (typeof window !== 'undefined') {
         const token = localStorage.getItem('access_token');
         if (token) {
             headers.set('Authorization', `Bearer ${token}`);
         }
+        if (isPostRequest) {
+            window.dispatchEvent(new Event('api:start'));
+        }
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers,
-    });
+    try {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            ...options,
+            headers,
+        });
 
-    // Handle 401 — clear token and redirect (only if not already on login page)
-    if (response.status === 401 && typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+        // Handle 401 — clear token and redirect (only if not already on login page)
+        if (response.status === 401 && typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+
+        return response;
+    } finally {
+        if (typeof window !== 'undefined' && isPostRequest) {
+            window.dispatchEvent(new Event('api:end'));
+        }
     }
-
-    return response;
 }
 
 export const apiClient = {

@@ -39,9 +39,10 @@ const emptyPet: PetFormData = {
 interface CreateAppointmentFormProps {
   onCancel: () => void;
   onSuccess: () => void;
+  initialDate?: string;
 }
 
-export function CreateAppointmentForm({ onCancel, onSuccess }: CreateAppointmentFormProps) {
+export function CreateAppointmentForm({ onCancel, onSuccess, initialDate }: CreateAppointmentFormProps) {
   const { brandColor } = useBranding();
   
   // Modes: 'EXISTING' or 'NEW'
@@ -69,7 +70,10 @@ export function CreateAppointmentForm({ onCancel, onSuccess }: CreateAppointment
   useEffect(() => {
     loadCustomers();
     resetForm();
-  }, []);
+    if (initialDate) {
+      setDate(initialDate);
+    }
+  }, [initialDate]);
 
   const loadCustomers = async () => {
     try {

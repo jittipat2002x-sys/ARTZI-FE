@@ -33,6 +33,8 @@ const mitr = Mitr({
   weight: ["200", "300", "400", "500", "600", "700"],
 });
 
+import { GlobalSpinner } from "@/components/ui/global-spinner";
+
 export const metadata: Metadata = {
   title: "PetHeart",
   description: "ระบบบริหารจัดการคลินิกสัตวแพทย์",
@@ -82,6 +84,7 @@ export default function RootLayout({
         <ReactQueryProvider>
           <ThemeProvider>
             <BrandingProvider>
+              <GlobalSpinner />
               {children}
             </BrandingProvider>
           </ThemeProvider>

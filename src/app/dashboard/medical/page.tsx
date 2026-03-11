@@ -19,7 +19,9 @@ import {
   AlertCircle,
   Printer,
   Receipt,
-  Box
+  Box,
+  FlaskConical,
+  FileDown
 } from 'lucide-react';
 import { Pagination } from '@/components/ui/pagination';
 import { PrintInvoiceModal } from '../customers/components/PrintInvoiceModal';
@@ -347,6 +349,44 @@ export default function MedicalHistoryPage() {
                           {record.admission.notes && <span>(หมายเหตุ: {record.admission.notes})</span>}
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {record.labTests && record.labTests.length > 0 && (
+                  <div className="pt-2">
+                    <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <FlaskConical size={12} /> ผลตรวจทางห้องปฏิบัติการ (Lab Results)
+                    </h5>
+                    <div className="space-y-3">
+                      {record.labTests.map((lab: any, lIdx: number) => (
+                        <div key={lIdx} className="space-y-1">
+                          <p className="text-xs font-bold text-gray-800 dark:text-gray-200 px-1">{lab.testType}</p>
+                          <div className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-2.5 rounded-lg">
+                            <p className="font-medium" style={{ color: brandColor }}>ผล: {lab.result || '-'}</p>
+                            {lab.notes && <p className="text-[11px] text-gray-500 mt-1 italic">{lab.notes}</p>}
+                            
+                            {lab.files && lab.files.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {lab.files.map((file: any, fIdx: number) => (
+                                  <a 
+                                    key={fIdx}
+                                    href={file.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-800 hover:bg-brand/10 hover:text-brand rounded-md text-[10px] transition-colors border border-gray-200 dark:border-gray-700 shadow-sm no-print"
+                                    style={{ color: brandColor }}
+                                    download={file.name}
+                                  >
+                                    <FileDown size={10} />
+                                    <span className="max-w-[120px] truncate">{file.name}</span>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

@@ -130,4 +130,10 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
+
+  /* Force exact hover styles to prevent Tailwind v4 oklab opacity bugs with dynamic hex variables */
+  .hover-brand-action:hover {
+    color: var(--color-brand) !important;
+    background-color: color-mix(in srgb, var(--color-brand) 10%, transparent) !important;
+  }
 }

@@ -544,15 +544,17 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
                 {record.labTests && record.labTests.length > 0 ? (
                   <div className="space-y-4">
                     {record.labTests.map((test: any, index: number) => (
-                      <div key={index} className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg space-y-3 relative group">
-                        <button
-                          onClick={() => removeLabTest(petId, index)}
-                          className="absolute -top-2 -right-2 p-1 bg-red-50 text-red-500 rounded-full border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                      <div key={index} className="space-y-3 relative group">
+                        <div className="flex justify-end mb-2">
+                           <button
+                             onClick={() => removeLabTest(petId, index)}
+                             className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 transition-colors"
+                           >
+                             <Trash2 size={14} /> ลบผลตรวจนี้
+                           </button>
+                        </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <BrandInput
                             label="ประเภทการตรวจ"
                             placeholder="เช่น CBC, Blood Chem, X-Ray"
@@ -569,32 +571,32 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
                         
                         <BrandTextarea
                           label="หมายเหตุ"
-                          rows={1}
+                          rows={2}
                           value={test.notes}
                           onChange={(e) => updateLabTest(petId, index, 'notes', e.target.value)}
                         />
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 mt-2">
                           <label className="text-xs font-bold text-slate-400 uppercase block">ไฟล์แนบ / รูปภาพ</label>
                           <div className="flex flex-wrap gap-2">
                             {test.files?.map((file: any, fIndex: number) => (
-                              <div key={fIndex} className="flex items-center gap-2 p-1 pr-2 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded text-[10px] text-gray-600 dark:text-gray-400">
-                                <span className="max-w-[100px] truncate">{file.name}</span>
+                              <div key={fIndex} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-lg text-xs text-gray-600 dark:text-gray-400 max-w-[200px]">
+                                <span className="truncate flex-1">{file.name}</span>
                                 <button 
                                   onClick={() => {
                                     const newFiles = [...test.files];
                                     newFiles.splice(fIndex, 1);
                                     updateLabTest(petId, index, 'files', newFiles);
                                   }}
-                                  className="text-red-400 hover:text-red-600"
+                                  className="text-red-400 hover:text-red-600 p-1"
                                 >
-                                  <X size={10} />
+                                  <X size={12} />
                                 </button>
                               </div>
                             ))}
-                            <label className="flex items-center gap-1 p-1 px-2 border border-dashed border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:border-brand transition-colors text-[10px] text-gray-500">
-                              <FileUp size={10} />
-                              <span>อัปโหลด</span>
+                            <label className="flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-brand hover:text-brand transition-colors text-sm text-gray-500 group">
+                              <FileUp size={16} className="text-gray-400 group-hover:text-brand transition-colors" />
+                              <span>แนบไฟล์เพิ่ม</span>
                               <input 
                                 type="file" 
                                 multiple 
@@ -604,6 +606,10 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
                             </label>
                           </div>
                         </div>
+                        
+                        {index < record.labTests.length - 1 && (
+                            <hr className="my-4 border-gray-100 dark:border-gray-800" />
+                        )}
                       </div>
                     ))}
                   </div>

@@ -126,9 +126,9 @@ export function AlertModal({
       btnConfirm: 'bg-blue-600 hover:bg-blue-500 text-white',
     },
     success: {
-      icon: <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" aria-hidden="true" />,
-      bgIcon: 'bg-green-100 dark:bg-green-900/30',
-      btnConfirm: 'bg-green-600 hover:bg-green-500 text-white',
+      icon: <CheckCircle className="h-6 w-6 text-brand" aria-hidden="true" />,
+      bgIcon: 'bg-brand/20',
+      btnConfirm: 'bg-brand hover:bg-brand-hover text-white',
     },
   };
 

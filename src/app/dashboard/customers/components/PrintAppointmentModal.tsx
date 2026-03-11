@@ -119,10 +119,13 @@ export function PrintAppointmentModal({
       <html>
         <head>
           <title>Appointments - ${customerName}</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700;800&display=swap" rel="stylesheet">
           <style>
             ${pageCss}
             body { 
-              font-family: 'Inter', 'Sarabun', sans-serif; 
+              font-family: 'Sarabun', sans-serif; 
               margin: 0; 
               padding: ${bodyPadding}; 
               color: #333; 
@@ -193,8 +196,8 @@ export function PrintAppointmentModal({
     <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="sm:max-w-md" wrapperClassName="!z-[130]">
       <div className="bg-white dark:bg-gray-800 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
         <div className="sm:flex sm:items-start">
-          <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30 sm:mx-0 sm:h-10 sm:w-10">
-            <Calendar className="h-6 w-6 text-orange-600 dark:text-orange-400" aria-hidden="true" />
+          <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10" style={{ backgroundColor: `${brandColor}20` }}>
+            <Calendar className="h-6 w-6" style={{ color: brandColor }} aria-hidden="true" />
           </div>
           <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
             <h3 className="text-base font-semibold leading-6 text-gray-900 dark:text-white mb-2" id="modal-title">
@@ -208,11 +211,13 @@ export function PrintAppointmentModal({
                   <button
                     key={size.id}
                     onClick={() => setSelectedSize(size.id)}
-                    className={`py-2 px-1 text-[10px] font-bold rounded-md border transition-all ${
-                      selectedSize === size.id
-                        ? 'bg-orange-50 border-orange-500 text-orange-600 ring-2 ring-orange-500/10'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 dark:bg-gray-800'
-                    }`}
+                    className="py-2 px-1 text-[10px] font-bold rounded-md border transition-all"
+                    style={{
+                      backgroundColor: selectedSize === size.id ? `${brandColor}10` : 'transparent',
+                      borderColor: selectedSize === size.id ? brandColor : undefined,
+                      color: selectedSize === size.id ? brandColor : undefined,
+                      boxShadow: selectedSize === size.id ? `0 0 0 2px ${brandColor}10` : undefined
+                    }}
                   >
                     {size.label}
                   </button>
@@ -226,11 +231,11 @@ export function PrintAppointmentModal({
 
             <div className="mt-4 space-y-3">
               {appointments.map((appt, idx) => (
-                <div key={idx} className="p-3 border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10 rounded-md">
+                <div key={idx} className="p-3 border rounded-md" style={{ backgroundColor: `${brandColor}10`, borderColor: `${brandColor}20` }}>
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="text-sm font-bold text-gray-900 dark:text-white">{appt.petName}</div>
-                      <div className="text-xs text-orange-700 dark:text-orange-400 font-semibold">{appt.date}</div>
+                      <div className="text-xs font-semibold" style={{ color: brandColor }}>{appt.date}</div>
                     </div>
                     <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 uppercase italic">เหตุผล: {appt.reason}</div>
                   </div>
@@ -239,13 +244,13 @@ export function PrintAppointmentModal({
             </div>
 
             <div className="mt-5 space-y-2">
-               <button
+               <BrandButton
                 onClick={handlePrint}
-                className="w-full flex items-center justify-center gap-2 p-3 rounded-md bg-orange-600 hover:bg-orange-500 text-white font-semibold transition-colors shadow-sm"
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-md font-semibold transition-colors shadow-sm"
               >
                 <Printer size={18} />
                 สั่งพิมพ์ใบนัด (Print Slip)
-              </button>
+              </BrandButton>
               <p className="text-center text-xs text-gray-500 dark:text-gray-400">
                 กรุณาเลือกขนาดกระดาษให้ตรงกับเครื่องพิมพ์ของคุณก่อนสั่งพิมพ์
               </p>

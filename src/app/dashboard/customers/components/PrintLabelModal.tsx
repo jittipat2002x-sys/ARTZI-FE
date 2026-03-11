@@ -166,13 +166,16 @@ export function PrintLabelModal({
       <html>
         <head>
           <title>Print Label</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700;800&display=swap" rel="stylesheet">
           <style>
             @page { 
               size: ${selectedSize.width}mm ${selectedSize.height}mm;
               margin: 0; 
             }
             body { 
-              font-family: 'Inter', sans-serif; 
+              font-family: 'Sarabun', sans-serif; 
               margin: 0; 
               padding: 0; 
               display: flex; 
@@ -219,8 +222,8 @@ export function PrintLabelModal({
     <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="sm:max-w-md" wrapperClassName="!z-[130]">
       <div className="bg-white dark:bg-gray-800 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
         <div className="sm:flex sm:items-start">
-          <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 sm:mx-0 sm:h-10 sm:w-10">
-            <Printer className="h-6 w-6 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+          <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10" style={{ backgroundColor: `${brandColor}20` }}>
+            <Printer className="h-6 w-6" style={{ color: brandColor }} aria-hidden="true" />
           </div>
           <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
             <h3 className="text-base font-semibold leading-6 text-gray-900 dark:text-white mb-2" id="modal-title">
@@ -235,11 +238,13 @@ export function PrintLabelModal({
                   <button
                     key={size.label}
                     onClick={() => setSelectedSize(size)}
-                    className={`py-2 px-1 text-[10px] font-bold rounded-md border transition-all ${
-                      selectedSize.label === size.label
-                        ? 'bg-blue-50 border-blue-500 text-blue-600 ring-2 ring-blue-500/10'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 dark:bg-gray-800'
-                    }`}
+                    className="py-2 px-1 text-[10px] font-bold rounded-md border transition-all"
+                    style={{
+                      backgroundColor: selectedSize.label === size.label ? `${brandColor}10` : 'transparent',
+                      borderColor: selectedSize.label === size.label ? brandColor : undefined,
+                      color: selectedSize.label === size.label ? brandColor : undefined,
+                      boxShadow: selectedSize.label === size.label ? `0 0 0 2px ${brandColor}10` : undefined
+                    }}
                   >
                     {size.label}
                   </button>
@@ -257,8 +262,8 @@ export function PrintLabelModal({
               <label className="text-xs font-bold text-gray-400 block mb-2 uppercase tracking-wider">เลือกภาษา (Select Language)</label>
             </div>
 
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-100 dark:border-blue-800 mb-4">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
+            <div className="p-3 rounded-md border mb-4" style={{ backgroundColor: `${brandColor}10`, borderColor: `${brandColor}20` }}>
+              <p className="text-sm" style={{ color: brandColor }}>
                 พบ {items.length} รายการที่ต้องการพิมพ์สำหรับ <strong>{petName}</strong>
               </p>
             </div>
@@ -266,44 +271,45 @@ export function PrintLabelModal({
             <div className="space-y-3">
               <button
                 onClick={() => handlePrint('TH')}
-                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all group bg-white dark:bg-gray-800 shadow-sm"
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-all group bg-white dark:bg-gray-800 shadow-sm"
+                style={{ hover: { borderColor: brandColor } } as any}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-600 group-hover:text-blue-600">TH</div>
+                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-600 group-hover:text-brand">TH</div>
                   <div className="text-left">
                     <p className="text-sm font-bold text-gray-900 dark:text-white">ภาษาไทย (Thai)</p>
                     <p className="text-xs text-gray-500">พิมพ์ฉลากเป็นภาษาไทยเท่านั้น</p>
                   </div>
                 </div>
-                <Printer size={16} className="text-gray-400 group-hover:text-blue-500" />
+                <Printer size={16} className="text-gray-400 group-hover:text-brand" />
               </button>
 
               <button
                 onClick={() => handlePrint('EN')}
-                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all group bg-white dark:bg-gray-800 shadow-sm"
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-all group bg-white dark:bg-gray-800 shadow-sm"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-600 group-hover:text-blue-600">EN</div>
+                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-600 group-hover:text-brand">EN</div>
                   <div className="text-left">
                     <p className="text-sm font-bold text-gray-900 dark:text-white">English</p>
                     <p className="text-xs text-gray-500">พิมพ์ฉลากเป็นภาษาอังกฤษเท่านั้น</p>
                   </div>
                 </div>
-                <Printer size={16} className="text-gray-400 group-hover:text-blue-500" />
+                <Printer size={16} className="text-gray-400 group-hover:text-brand" />
               </button>
 
               <button
                 onClick={() => handlePrint('BOTH')}
-                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all group bg-white dark:bg-gray-800 shadow-sm"
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-all group bg-white dark:bg-gray-800 shadow-sm"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center font-bold text-blue-600 group-hover:text-blue-700">双</div>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold" style={{ backgroundColor: `${brandColor}20`, color: brandColor }}>双</div>
                   <div className="text-left">
                     <p className="text-sm font-bold text-gray-900 dark:text-white">Bilingual (TH + EN)</p>
                     <p className="text-xs text-gray-500">พิมพ์ทั้งสองภาษาในฉลากเดียว</p>
                   </div>
                 </div>
-                <Printer size={16} className="text-gray-400 group-hover:text-blue-500" />
+                <Printer size={16} className="text-gray-400 group-hover:text-brand" />
               </button>
             </div>
           </div>

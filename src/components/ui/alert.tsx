@@ -17,8 +17,8 @@ interface AlertProps {
 
 const variantStyles: Record<AlertVariant, { container: string; iconColor: string; icon: React.ElementType }> = {
   success: {
-    container: 'bg-green-50 border-green-200 text-green-800',
-    iconColor: 'text-green-500',
+    container: 'bg-brand/10 border-brand/30 text-brand-hover dark:bg-brand/20 dark:border-brand/40 dark:text-brand',
+    iconColor: 'text-brand',
     icon: CheckCircle2,
   },
   warning: {

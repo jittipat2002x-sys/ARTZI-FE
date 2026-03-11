@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { Pagination } from './pagination';
 import { PackageSearch } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBranding } from '@/contexts/branding-context';
 
 export interface Column<T> {
   header: string;
@@ -37,6 +38,8 @@ export function DataTable<T>({
   expandedRowId,
   renderExpandedRow
 }: DataTableProps<T>) {
+  const { brandColor } = useBranding();
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-none border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="overflow-x-auto">
@@ -55,7 +58,7 @@ export function DataTable<T>({
               <tr>
                 <td colSpan={columns.length} className="px-6 py-8 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand mb-4"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 mb-4" style={{ borderBottomColor: brandColor }}></div>
                     กำลังโหลดข้อมูล...
                   </div>
                 </td>

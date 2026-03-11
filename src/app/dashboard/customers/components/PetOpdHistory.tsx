@@ -202,14 +202,21 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
                     <FlaskConical size={10} /> ผลตรวจทางห้องปฏิบัติการ (Lab Results):
                   </span>
                   {record.labTests.map((lab: any, lIdx: number) => (
-                    <div key={lIdx} className="bg-white dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 shadow-sm">
-                      <div className="flex justify-between items-start">
+                    <div 
+                      key={lIdx} 
+                      className="mt-2 text-gray-700 dark:text-gray-300 border-l-2 pl-3 py-2 rounded-r shadow-sm"
+                      style={{ 
+                        borderLeftColor: brandColor,
+                        backgroundColor: brandColor + '08' 
+                      }}
+                    >
+                      <div className="flex justify-between items-start mb-1">
                         <div>
-                          <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{lab.testType}</p>
-                          <p className="text-xs text-brand font-medium" style={{ color: brandColor }}>ผล: {lab.result || '-'}</p>
+                          <p className="font-semibold">{lab.testType}</p>
+                          <p className="text-sm font-medium" style={{ color: brandColor }}>ผล: {lab.result || '-'}</p>
                         </div>
                       </div>
-                      {lab.notes && <p className="text-[11px] text-gray-500 mt-1 italic">{lab.notes}</p>}
+                      {lab.notes && <p className="text-xs text-gray-500 mt-1 italic">{lab.notes}</p>}
                       
                       {lab.files && lab.files.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -219,7 +226,7 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
                               href={file.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-brand/10 hover:text-brand rounded text-[10px] transition-colors border border-gray-200 dark:border-gray-600 no-print"
+                              className="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-800 hover:bg-brand/10 hover:text-brand rounded text-[10px] transition-colors border border-gray-200 dark:border-gray-600 no-print"
                               style={{ color: brandColor }}
                               download={file.name}
                             >
@@ -235,11 +242,17 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
               )}
 
               {record.medications && record.medications.length > 0 && (
-                <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-600">
-                  <span className="text-gray-500 text-xs font-semibold mb-1 flex items-center gap-1">
-                    <Pill size={12} /> รายการยาและบริการ:
+                <div 
+                  className="mt-3 text-gray-700 dark:text-gray-300 border-l-2 pl-3 py-2 rounded-r shadow-sm"
+                  style={{ 
+                    borderLeftColor: brandColor,
+                    backgroundColor: brandColor + '08' 
+                  }}
+                >
+                  <span className="text-gray-500 text-xs font-semibold mb-2 flex items-center gap-1">
+                    <Pill size={12} /> รายละเอียดค่าใช้จ่าย (ยาและบริการ):
                   </span>
-                  <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 text-xs">
+                  <ul className="space-y-2 text-xs">
                     {record.medications.map((med: any) => {
                       // Determine the display type based on the fetched inventory relation
                       const inv = med.inventory;
@@ -253,20 +266,14 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
                       }
 
                       return (
-                        <li key={med.id} className="mb-2 group">
+                        <li key={med.id} className="group flex flex-col gap-0.5">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center flex-wrap gap-1">
-                              <span className="inline-block px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-[10px] text-gray-600 dark:text-gray-300 mr-1 font-medium">
+                            <div className="flex items-center flex-wrap gap-1.5">
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-[10px] text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap shadow-sm">
                                 {typeLabel}
                               </span>
-                              <span className="font-medium">{inv?.name} x {med.quantity}</span>
-                              {dosageOverrides[med.id] || med.dosage ? (
-                                <span className="text-gray-600 dark:text-gray-400 italic">
-                                  {` (${dosageOverrides[med.id] || med.dosage})`}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400 italic"> (ไม่มีวิธีใช้)</span>
-                              )}
+                              <span className="font-semibold text-gray-800 dark:text-gray-200">{inv?.name}</span>
+                              <span className="text-gray-500 text-[10px] bg-gray-100 dark:bg-gray-700 px-1 rounded">x {med.quantity}</span>
                             </div>
                             
                             <button 
@@ -275,11 +282,21 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
                                   setActiveInvName(inv?.name || '');
                                   setIsUsageModalOpen(true);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-500 transition-opacity no-print"
+                                className="opacity-0 group-hover:opacity-100 p-1 text-brand hover:bg-brand/10 transition-all rounded no-print shrink-0"
+                                style={{ color: brandColor }}
                                 title="แก้ไขวิธีใช้"
                               >
                                 <Edit2 size={12} />
                               </button>
+                          </div>
+                          
+                          {/* Dosage override or default */}
+                          <div className="pl-[4.5rem] mt-0.5 text-gray-500 dark:text-gray-400 text-[11px] italic">
+                            {dosageOverrides[med.id] || med.dosage ? (
+                              <span>วิธีใช้: {dosageOverrides[med.id] || med.dosage}</span>
+                            ) : (
+                              <span className="opacity-60">ไม่มีข้อกำหนดวิธีใช้</span>
+                            )}
                           </div>
                         </li>
                       );

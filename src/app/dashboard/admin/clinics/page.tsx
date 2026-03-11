@@ -224,7 +224,7 @@ export default function ClinicsPage() {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      clinic.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                      clinic.status === 'APPROVED' ? 'bg-brand/10 text-brand' :
                       clinic.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
                       clinic.status === 'RENEW_PENDING' ? 'bg-blue-100 text-blue-700' :
                       'bg-amber-100 text-amber-700'
@@ -271,7 +271,7 @@ export default function ClinicsPage() {
                       <button 
                         onClick={() => setApproveConfirmId(clinic.id)}
                         className={`inline-flex items-center justify-center p-2 rounded-lg border transition-colors ${
-                          clinic.status === 'RENEW_PENDING' ? 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100' : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'
+                          clinic.status === 'RENEW_PENDING' ? 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100' : 'bg-brand/10 text-brand border-brand/20 hover:bg-brand/20'
                         }`}
                         title={clinic.status === 'RENEW_PENDING' ? 'อนุมัติต่ออายุ' : 'อนุมัติ'}
                       >
@@ -397,8 +397,8 @@ export default function ClinicsPage() {
         className="max-w-md"
       >
         <div className="p-6">
-          <div className="flex items-center gap-3 mb-4 text-green-600">
-            <div className="bg-green-100 p-2 rounded-full">
+          <div className="flex items-center gap-3 mb-4 text-brand">
+            <div className="bg-brand/10 p-2 rounded-full">
               <CheckCircle className="h-6 w-6" />
             </div>
             <h3 className="text-lg font-bold">ยืนยันการอนุมัติ</h3>

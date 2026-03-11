@@ -23,8 +23,11 @@ import {
   CalendarDays,
   Stethoscope,
   History,
+  LayoutList,
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { CreateAppointmentForm } from './components/CreateAppointmentForm';
+import { AppointmentCalendar } from './components/AppointmentCalendar';
 
 interface GroupedAppointment {
   id: string; // Combined ID for React keys, usually just customerId_date
@@ -40,6 +43,8 @@ export default function AppointmentsPage() {
   const { brandColor } = useBranding();
 
   // Filters
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
+  const [currentMonthDate, setCurrentMonthDate] = useState<Date>(new Date());
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -51,6 +56,7 @@ export default function AppointmentsPage() {
   // Modals
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+  const [createFormPrefillDate, setCreateFormPrefillDate] = useState<string>('');
   const [selectedGroup, setSelectedGroup] = useState<GroupedAppointment | null>(null);
   const [selectedAppointmentIds, setSelectedAppointmentIds] = useState<string[]>([]);
   const [newDate, setNewDate] = useState<string>('');
@@ -89,7 +95,11 @@ export default function AppointmentsPage() {
   const loadAppointments = async (page = 1) => {
     setLoading(true);
     try {
-      const response = await appointmentService.getAppointments(page, 10, statusFilter, selectedBranchId, selectedDate || undefined, search);
+      const isCalendarView = viewMode === 'calendar';
+      const fetchLimit = isCalendarView ? 1000 : 10;
+      const fetchDate = isCalendarView ? format(currentMonthDate, 'yyyy-MM') : (selectedDate || undefined);
+
+      const response = await appointmentService.getAppointments(page, fetchLimit, statusFilter, selectedBranchId, fetchDate, search);
       
       let items: any[] = [];
       let totalPagesCount = 1;
@@ -111,18 +121,14 @@ export default function AppointmentsPage() {
       const groupedMap = new Map<string, GroupedAppointment>();
 
       items.forEach((app: Appointment) => {
-        const d = new Date(app.date);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const dateKey = `${year}-${month}-${day}`;
+        const dateStr = app.date.includes('T') ? app.date.split('T')[0] : format(new Date(app.date), 'yyyy-MM-dd');
         const customerId = app.pet.customer.id;
-        const groupKey = `${customerId}_${dateKey}`;
+        const groupKey = `${customerId}_${dateStr}`;
 
         if (!groupedMap.has(groupKey)) {
           groupedMap.set(groupKey, {
             id: groupKey,
-            date: dateKey,
+            date: dateStr,
             customer: app.pet.customer,
             originalAppointments: []
           });
@@ -157,11 +163,11 @@ export default function AppointmentsPage() {
     const delay = isTyping ? 500 : 0;
 
     const timeoutId = setTimeout(() => {
-      loadAppointments(currentPage);
+      loadAppointments(viewMode === 'calendar' ? 1 : currentPage);
     }, delay);
 
     return () => clearTimeout(timeoutId);
-  }, [currentPage, selectedBranchId, statusFilter, search, selectedDate]);
+  }, [currentPage, selectedBranchId, statusFilter, search, selectedDate, viewMode, currentMonthDate]);
 
   const handleUpdateStatus = async (group: GroupedAppointment, status: Appointment['status']) => {
     const scheduledApps = group.originalAppointments.filter(a => a.status === 'SCHEDULED');
@@ -417,12 +423,53 @@ export default function AppointmentsPage() {
             รายการนัดหมายล่วงหน้าและประวัติการนัดหมาย
           </p>
         </div>
-        <BrandButton
-          onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
-          className="rounded-full px-6 shadow-md whitespace-nowrap"
-        >
-          {isCreateFormOpen ? '- ปิดฟอร์ม' : '+ สร้างนัดหมาย'}
-        </BrandButton>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+            <button
+              onClick={() => {
+                setViewMode('table');
+                setCurrentPage(1);
+              }}
+              className={`flex items-center justify-center p-2 rounded-lg transition-all ${
+                viewMode === 'table' 
+                  ? 'bg-white dark:bg-gray-700 shadow-sm font-medium' 
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+              style={viewMode === 'table' ? { color: brandColor } : {}}
+            >
+              <LayoutList size={20} />
+            </button>
+            <button
+              onClick={() => {
+                setViewMode('calendar');
+                setCurrentPage(1);
+              }}
+              className={`flex items-center justify-center p-2 rounded-lg transition-all ${
+                viewMode === 'calendar' 
+                  ? 'bg-white dark:bg-gray-700 shadow-sm font-medium' 
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+              style={viewMode === 'calendar' ? { color: brandColor } : {}}
+            >
+              <CalendarDays size={20} />
+            </button>
+          </div>
+          <BrandButton
+            onClick={() => {
+              if (isCreateFormOpen) {
+                setIsCreateFormOpen(false);
+                setCreateFormPrefillDate('');
+              } else {
+                setCreateFormPrefillDate('');
+                setIsCreateFormOpen(true);
+                setExpandedVisitAppointmentId(null);
+              }
+            }}
+            className="rounded-full px-6 shadow-md whitespace-nowrap flex-1 sm:flex-none"
+          >
+            {isCreateFormOpen ? '- ปิดฟอร์ม' : '+ สร้างนัดหมาย'}
+          </BrandButton>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-none border border-gray-200 dark:border-gray-700 mb-6">
@@ -487,47 +534,114 @@ export default function AppointmentsPage() {
 
       {isCreateFormOpen && (
         <CreateAppointmentForm
-          onCancel={() => setIsCreateFormOpen(false)}
+          initialDate={createFormPrefillDate}
+          onCancel={() => {
+            setIsCreateFormOpen(false);
+            setCreateFormPrefillDate('');
+          }}
           onSuccess={() => {
             setIsCreateFormOpen(false);
+            setCreateFormPrefillDate('');
             loadAppointments();
           }}
         />
       )}
 
-      <DataTable
-        columns={columns}
-        data={appointments}
-        loading={loading}
-        emptyIcon={CalendarDays}
-        emptyText="ไม่พบรายการนัดหมาย"
-        keyExtractor={(g) => g.id}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        expandedRowId={expandedVisitAppointmentId}
-        renderExpandedRow={(group) => (
-          expandedVisitAppointmentId === group.id ? (
-            <VisitPanel 
-              customer={{
-                id: group.customer.id,
-                tenantId: user?.tenantId || '',
-                firstName: group.customer.firstName,
-                lastName: group.customer.lastName,
-                phone: group.customer.phone || undefined,
-                pets: Array.from(new Map(group.originalAppointments.map(a => [a.pet.id, a.pet])).values()) as any,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              }}
-              linkedAppointments={group.originalAppointments}
-              onClose={() => {
-                setExpandedVisitAppointmentId(null);
-                loadAppointments(); // Refresh to potentially show new status if changed
-              }} 
-            />
-          ) : null
-        )}
-      />
+      {viewMode === 'calendar' && expandedVisitAppointmentId && !isCreateFormOpen && (() => {
+        const group = appointments.find(g => g.id === expandedVisitAppointmentId);
+        if (group) {
+          return (
+            <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-300 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+              <VisitPanel 
+                customer={{
+                  id: group.customer.id,
+                  tenantId: user?.tenantId || '',
+                  firstName: group.customer.firstName,
+                  lastName: group.customer.lastName,
+                  phone: group.customer.phone || undefined,
+                  pets: Array.from(new Map(group.originalAppointments.map(a => [a.pet.id, a.pet])).values()) as any,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }}
+                linkedAppointments={group.originalAppointments}
+                onClose={() => {
+                  setExpandedVisitAppointmentId(null);
+                  loadAppointments();
+                }} 
+              />
+            </div>
+          );
+        }
+        return null;
+      })()}
+
+      {viewMode === 'table' ? (
+        <DataTable
+          columns={columns}
+          data={appointments}
+          loading={loading}
+          emptyIcon={CalendarDays}
+          emptyText="ไม่พบรายการนัดหมาย"
+          keyExtractor={(g) => g.id}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          expandedRowId={expandedVisitAppointmentId}
+          renderExpandedRow={(group) => (
+            expandedVisitAppointmentId === group.id ? (
+              <VisitPanel 
+                customer={{
+                  id: group.customer.id,
+                  tenantId: user?.tenantId || '',
+                  firstName: group.customer.firstName,
+                  lastName: group.customer.lastName,
+                  phone: group.customer.phone || undefined,
+                  pets: Array.from(new Map(group.originalAppointments.map(a => [a.pet.id, a.pet])).values()) as any,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }}
+                linkedAppointments={group.originalAppointments}
+                onClose={() => {
+                  setExpandedVisitAppointmentId(null);
+                  loadAppointments(); // Refresh to potentially show new status if changed
+                }} 
+              />
+            ) : null
+          )}
+        />
+      ) : (
+        <AppointmentCalendar
+          currentDate={currentMonthDate}
+          onMonthChange={setCurrentMonthDate}
+          appointments={appointments.flatMap(g => g.originalAppointments)}
+          onDateSelect={(date) => {
+            // Give user intent to explicitly create appointment on this day
+            setCreateFormPrefillDate(format(date, 'yyyy-MM-dd'));
+            setIsCreateFormOpen(true);
+            setExpandedVisitAppointmentId(null);
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll back up to the form
+          }}
+          onAppointmentClick={(app) => {
+            // Find the group related to this appointment
+            // Avoid JS Date timezone shifting issues by extracting YYYY-MM-DD string part directly
+            const dateStr = app.date.includes('T') ? app.date.split('T')[0] : format(new Date(app.date), 'yyyy-MM-dd');
+            const groupId = `${app.pet.customer.id}_${dateStr}`;
+            const group = appointments.find(g => g.id === groupId);
+
+            // If the appointment group is fully completed, open the completed detailed modal directly
+            if (group && group.originalAppointments.every(a => a.status === 'COMPLETED')) {
+              setViewCompletedVisitGroup(group);
+              setExpandedVisitAppointmentId(null);
+            } else {
+              // Expand that appointment in calendar mode
+              setExpandedVisitAppointmentId(groupId);
+            }
+
+            setIsCreateFormOpen(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      )}
 
       {isRescheduleModalOpen && selectedGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -684,7 +798,7 @@ export default function AppointmentsPage() {
                     }
                   }}
                   className={`flex-1 px-4 py-3 text-sm font-bold text-white rounded-2xl transition-all shadow-lg ${
-                    partialActionModal.status === 'CANCELLED' ? 'bg-red-500 hover:bg-red-600 shadow-red-200' : 'bg-green-500 hover:bg-green-600 shadow-green-200'
+                    partialActionModal.status === 'CANCELLED' ? 'bg-red-500 hover:bg-red-600 shadow-red-200' : 'bg-brand hover:bg-brand-hover shadow-brand/20'
                   } disabled:opacity-50 disabled:shadow-none`}
                 >
                   ยืนยัน

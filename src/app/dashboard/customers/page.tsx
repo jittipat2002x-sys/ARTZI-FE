@@ -474,14 +474,14 @@ export default function CustomerPage() {
               setEditingCustomerId(null);
               setIsFormOpen(false);
             }}
-            className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+            className="p-1.5 text-gray-500 hover-brand-action rounded-lg transition-colors"
             title="สร้างรายการเข้ารักษา"
           >
             <Stethoscope size={16} />
           </button>
           <button
             onClick={() => handleEdit(customer)}
-            className="p-1.5 text-gray-500 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
+            className="p-1.5 text-gray-500 hover-brand-action rounded-lg transition-colors"
             title="แก้ไข"
           >
             <Edit2 size={16} />

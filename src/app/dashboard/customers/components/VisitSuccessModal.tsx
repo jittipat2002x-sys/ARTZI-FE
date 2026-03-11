@@ -71,8 +71,8 @@ export function VisitSuccessModal({
     <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="sm:max-w-lg" wrapperClassName="!z-[100]">
       <div className="bg-white dark:bg-gray-800 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
         <div className="sm:flex sm:items-start">
-          <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 sm:mx-0 sm:h-10 sm:w-10">
-            <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" aria-hidden="true" />
+          <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-brand/20 sm:mx-0 sm:h-10 sm:w-10">
+            <CheckCircle2 className="h-6 w-6 text-brand" aria-hidden="true" />
           </div>
           <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
             <h3 className="text-base font-semibold leading-6 text-gray-900 dark:text-white mb-2" id="modal-title">

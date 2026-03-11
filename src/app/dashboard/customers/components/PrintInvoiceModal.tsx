@@ -248,10 +248,13 @@ export function PrintInvoiceModal({
       <html>
         <head>
           <title>Invoice - ${invoiceNumber}</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
           <style>
             ${pageCss}
             body { 
-              font-family: 'Inter', 'Sarabun', sans-serif; 
+              font-family: 'Sarabun', sans-serif; 
               margin: 0; 
               padding: ${bodyPadding}; 
               color: #333; 
