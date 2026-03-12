@@ -8,8 +8,10 @@ import { BrandInput } from '@/components/ui/brand-input';
 import { Pagination } from '@/components/ui/pagination';
 import { Plus, Pencil, Trash2, Shield, Settings2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useBranding } from '@/contexts/branding-context';
 
 export default function RolesPage() {
+  const { brandColor } = useBranding();
   const router = useRouter();
   const [roles, setRoles] = useState<any[]>([]);
   const [totalRoles, setTotalRoles] = useState(0);
@@ -120,7 +122,9 @@ export default function RolesPage() {
                   </button>
                   <button
                     onClick={() => { setEditRole(role); setForm({ name: role.name, description: role.description || '' }); }}
-                    className="text-gray-400 dark:text-gray-500 hover:text-brand mr-3 transition-colors"
+                    className="mr-3 transition-transform hover:scale-110 active:scale-95"
+                    style={{ color: brandColor }}
+                    title="แก้ไข Role"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>

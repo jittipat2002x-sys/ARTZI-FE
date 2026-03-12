@@ -41,6 +41,7 @@ export interface CreateVisitDto {
     }>;
     discount: number;
     paymentMethod?: string;
+    status: 'DRAFT' | 'COMPLETED';
 }
 
 export const useCreateVisit = () => {
@@ -55,6 +56,31 @@ export const useCreateVisit = () => {
             queryClient.invalidateQueries({ queryKey: ['visits'] });
             queryClient.invalidateQueries({ queryKey: ['medical-records'] });
         },
+    });
+};
+
+export const useUpdateVisit = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, data }: { id: string; data: CreateVisitDto }) => {
+            return apiClient.patch(`/visits/${id}`, data);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['visits'] });
+            queryClient.invalidateQueries({ queryKey: ['medical-records'] });
+        },
+    });
+};
+
+export const useGetVisit = (id: string) => {
+    return useQuery({
+        queryKey: ['visits', id],
+        queryFn: async () => {
+            const response = await apiClient.get(`/visits/${id}`);
+            return response.data;
+        },
+        enabled: !!id,
     });
 };
 

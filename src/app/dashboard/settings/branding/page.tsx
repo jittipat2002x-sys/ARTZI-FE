@@ -13,20 +13,23 @@ const PRESET_COLORS = [
 ];
 
 export default function BrandingPage() {
-  const { brandColor, logoUrl, setBrandColor, setLogoUrl, resetBranding } = useBranding();
+  const { brandColor, brandColorDark, logoUrl, setBrandColor, setBrandColorDark, setLogoUrl, resetBranding, updateBranding } = useBranding();
   const [color, setColor] = useState(brandColor);
+  const [colorDark, setColorDark] = useState(brandColorDark);
   const [logo, setLogo] = useState<string | null>(logoUrl);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activePicker, setActivePicker] = useState<'light' | 'dark'>('light');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasFetchedRef = useRef(false);
 
   // Sync local state when context values change (e.g. after background sync)
   useEffect(() => {
     if (brandColor) setColor(brandColor);
+    if (brandColorDark) setColorDark(brandColorDark);
     if (logoUrl) setLogo(logoUrl);
-  }, [brandColor, logoUrl]);
+  }, [brandColor, brandColorDark, logoUrl]);
 
   useEffect(() => {
     // We still keep a fetch here just in case, or we can rely on context.
@@ -35,12 +38,11 @@ export default function BrandingPage() {
     const syncFromServer = async () => {
       try {
         const data = await brandingService.get();
-        if (data.brandColor) {
-          // This will trigger the [brandColor, logoUrl] effect above
-          setBrandColor(data.brandColor);
-        }
-        if (data.logoUrl) {
-          setLogoUrl(data.logoUrl);
+        if (data.brandColor && data.brandColorDark) {
+          // This will trigger the [brandColor, brandColorDark, logoUrl] effect above
+          updateBranding(data.brandColor, data.brandColorDark, data.logoUrl || null);
+        } else if (data.brandColor) {
+           updateBranding(data.brandColor, data.brandColor, data.logoUrl || null);
         }
       } catch (e) {
         console.error('Failed to load branding in page:', e);
@@ -57,9 +59,12 @@ export default function BrandingPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await brandingService.update({ brandColor: color, logoUrl: logo || undefined });
-      setBrandColor(color);
-      setLogoUrl(logo);
+      await brandingService.update({ 
+        brandColor: color, 
+        brandColorDark: colorDark,
+        logoUrl: logo || undefined 
+      });
+      updateBranding(color, colorDark, logo);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: any) {
@@ -71,6 +76,7 @@ export default function BrandingPage() {
 
   const handleReset = async () => {
     setColor(DEFAULT_BRAND_COLOR);
+    setColorDark(DEFAULT_BRAND_COLOR);
     setLogo(null);
     resetBranding();
     try {
@@ -96,7 +102,8 @@ export default function BrandingPage() {
   // Live preview: apply color change in real-time
   useEffect(() => {
     document.documentElement.style.setProperty('--color-brand', color);
-  }, [color]);
+    document.documentElement.style.setProperty('--color-brand-dark', colorDark);
+  }, [color, colorDark]);
 
   if (loading) return <div className="flex justify-center items-center h-64"><p className="text-gray-500">กำลังโหลด...</p></div>;
 
@@ -116,13 +123,19 @@ export default function BrandingPage() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">🎨 สีหลัก (Brand Color)</h2>
         
-        {/* Color Picker */}
-        <div className="flex items-center gap-6 mb-8">
+        {/* Light Mode Color Picker */}
+        <div 
+          className={`flex items-center gap-6 mb-8 p-4 rounded-2xl transition-all cursor-pointer ${activePicker === 'light' ? 'bg-gray-50 dark:bg-gray-700/50 ring-2 ring-brand/20' : 'hover:bg-gray-50/50 dark:hover:bg-gray-700/30'}`}
+          onClick={() => setActivePicker('light')}
+        >
           <div className="relative group">
             <input 
               type="color" 
               value={color} 
-              onChange={(e) => setColor(e.target.value)}
+              onChange={(e) => {
+                setColor(e.target.value);
+                setActivePicker('light');
+              }}
               className="w-20 h-20 rounded-2xl cursor-pointer border-4 border-white dark:border-gray-700 shadow-xl transition-transform hover:scale-105"
               style={{ backgroundColor: color, appearance: 'none', padding: 0 }}
             />
@@ -131,7 +144,10 @@ export default function BrandingPage() {
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">สีประจำคลินิก</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">สีประจำคลินิก (Light Mode)</p>
+              {activePicker === 'light' && <Check className="h-3 w-3 text-green-500" />}
+            </div>
             <div className="flex items-center gap-3">
               <span className="text-3xl font-mono font-black tracking-tight" style={{ color }}>
                 {color.toUpperCase()}
@@ -144,6 +160,43 @@ export default function BrandingPage() {
           </div>
         </div>
 
+        {/* Dark Mode Color Picker */}
+        <div 
+          className={`flex items-center gap-6 mb-8 mt-4 p-4 rounded-2xl transition-all cursor-pointer ${activePicker === 'dark' ? 'bg-gray-900 ring-2 ring-white/10' : 'hover:bg-gray-50/50 dark:hover:bg-gray-700/30'}`}
+          onClick={() => setActivePicker('dark')}
+        >
+          <div className="relative group">
+            <input 
+              type="color" 
+              value={colorDark} 
+              onChange={(e) => {
+                setColorDark(e.target.value);
+                setActivePicker('dark');
+              }}
+              className="w-20 h-20 rounded-2xl cursor-pointer border-4 border-white dark:border-gray-700 shadow-xl transition-transform hover:scale-105"
+              style={{ backgroundColor: colorDark, appearance: 'none', padding: 0 }}
+            />
+            <div className="absolute -bottom-2 -right-2 bg-gray-900 rounded-full p-1.5 shadow-lg border border-gray-100 dark:border-gray-600">
+               <span className="text-[10px] font-bold text-white uppercase px-1">Dark</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">สีหลักในโหมดมืด (Dark Mode)</p>
+              {activePicker === 'dark' && <Check className="h-3 w-3 text-green-500" />}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-3xl font-mono font-black tracking-tight" style={{ color: colorDark }}>
+                {colorDark.toUpperCase()}
+              </span>
+              <div 
+                className="w-3 h-3 rounded-full animate-pulse" 
+                style={{ backgroundColor: colorDark }}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Preset Colors */}
         <div>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">สีแนะนำ</p>
@@ -151,7 +204,10 @@ export default function BrandingPage() {
             {PRESET_COLORS.map((c) => (
               <button
                 key={c}
-                onClick={() => setColor(c)}
+                onClick={() => {
+                   if (activePicker === 'light') setColor(c);
+                   else setColorDark(c);
+                }}
                 className={`w-9 h-9 rounded-lg transition-all hover:scale-110 flex items-center justify-center ${color === c ? 'ring-2 ring-offset-2 ring-gray-400 dark:ring-offset-gray-800' : ''}`}
                 style={{ backgroundColor: c }}
                 title={c}
@@ -163,20 +219,27 @@ export default function BrandingPage() {
         </div>
 
         {/* Preview */}
-        <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">ตัวอย่างการแสดงผล</p>
-          <div className="flex items-center gap-3">
-            <button className="px-4 py-2 text-sm font-semibold text-white rounded-lg" style={{ backgroundColor: color }}>
-              ปุ่มหลัก
-            </button>
-            <button className="px-4 py-2 text-sm font-semibold rounded-lg border-2" style={{ borderColor: color, color }}>
-              ปุ่มรอง
-            </button>
-            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white" style={{ backgroundColor: color }}>
-              Badge
-            </span>
-            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ backgroundColor: color + '20', color }}>
-              <span className="text-sm font-bold">A</span>
+        <div className="mt-6 flex flex-col md:flex-row gap-4">
+          <div className="flex-1 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <p className="text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-wider">Light Mode Preview</p>
+            <div className="flex items-center gap-3">
+              <button className="px-4 py-2 text-sm font-semibold text-white rounded-lg" style={{ backgroundColor: color }}>
+                ปุ่มหลัก
+              </button>
+              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white" style={{ backgroundColor: color }}>
+                Badge
+              </span>
+            </div>
+          </div>
+          <div className="flex-1 p-4 bg-gray-900 rounded-lg">
+            <p className="text-[10px] font-bold text-gray-500 mb-3 uppercase tracking-wider">Dark Mode Preview</p>
+            <div className="flex items-center gap-3">
+              <button className="px-4 py-2 text-sm font-semibold text-white rounded-lg" style={{ backgroundColor: colorDark }}>
+                ปุ่มหลัก
+              </button>
+              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white" style={{ backgroundColor: colorDark }}>
+                Badge
+              </span>
             </div>
           </div>
         </div>

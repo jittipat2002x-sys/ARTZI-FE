@@ -143,16 +143,17 @@ export function PrintAppointmentModal({
               flex-direction: column;
               justify-content: center;
             }
-            .header { margin-bottom: ${15 * fontSizeScale}px; }
-            .logo { height: ${50 * fontSizeScale}px; margin-bottom: ${8 * fontSizeScale}px; }
-            .title { font-size: ${20 * fontSizeScale}px; font-weight: bold; color: ${brandColor}; margin-bottom: ${3 * fontSizeScale}px; }
-            .subtitle { font-size: ${14 * fontSizeScale}px; color: #666; margin-bottom: ${15 * fontSizeScale}px; border-bottom: 2px solid #eee; padding-bottom: ${8 * fontSizeScale}px; }
-            .info-block { margin-bottom: ${12 * fontSizeScale}px; text-align: left; }
-            .label { font-size: ${10 * fontSizeScale}px; color: #888; text-transform: uppercase; font-weight: bold; }
-            .value { font-size: ${16 * fontSizeScale}px; font-weight: bold; margin-top: 1px; }
-            .appointment-time { background: ${brandColor}10; padding: ${12 * fontSizeScale}px; border-radius: 8px; margin: ${15 * fontSizeScale}px 0; border: 1px solid ${brandColor}30; }
-            .time-value { font-size: ${18 * fontSizeScale}px; color: ${brandColor}; font-weight: 900; }
-            .footer { margin-top: ${20 * fontSizeScale}px; font-size: ${11 * fontSizeScale}px; color: #888; }
+            .header { margin-bottom: ${10 * fontSizeScale}px; text-align: center; }
+            .logo { height: ${40 * fontSizeScale}px; margin-bottom: ${5 * fontSizeScale}px; display: block; margin-left: auto; margin-right: auto; }
+            .title { font-size: ${18 * fontSizeScale}px; font-weight: bold; color: ${brandColor}; margin-bottom: ${2 * fontSizeScale}px; }
+            .subtitle { font-size: ${12 * fontSizeScale}px; color: #666; margin-bottom: ${2 * fontSizeScale}px; }
+            .divider { border-bottom: 2px solid #eee; margin-bottom: ${8 * fontSizeScale}px; padding-bottom: ${4 * fontSizeScale}px; }
+            .info-block { margin-bottom: ${5 * fontSizeScale}px; text-align: left; }
+            .label { font-size: ${9 * fontSizeScale}px; color: #888; text-transform: uppercase; font-weight: bold; }
+            .value { font-size: ${15 * fontSizeScale}px; font-weight: bold; margin-top: 0px; }
+            .appointment-time { background: ${brandColor}10; padding: ${6 * fontSizeScale}px; border-radius: 6px; margin: ${8 * fontSizeScale}px 0; border: 1px solid ${brandColor}30; }
+            .time-value { font-size: ${17 * fontSizeScale}px; color: ${brandColor}; font-weight: 900; }
+            .footer { margin-top: ${10 * fontSizeScale}px; font-size: ${10 * fontSizeScale}px; color: #888; }
             .appointment-block { text-align: left; }
             @media print {
               body { padding: ${bodyPadding}; }
@@ -165,9 +166,10 @@ export function PrintAppointmentModal({
               ${logoUrl ? `<img src="${logoUrl}" class="logo" />` : `<div style="font-size: ${20 * fontSizeScale}px; font-weight: bold; color: ${brandColor}">${branchName || tenantName || 'Clinic'}</div>`}
               <div class="title">ใบนัดหมาย</div>
               <div class="subtitle">Appointment Slip</div>
+              <div class="divider"></div>
             </div>
 
-            <div class="info-block" style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            <div class="info-block" style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
               <div class="label">Owner / เจ้าของ</div>
               <div class="value">${customerName}</div>
             </div>

@@ -151,7 +151,7 @@ export default function MasterDataPage() {
             className: 'text-right w-[100px]',
             cell: (item) => (
                 <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => handleOpenEditModal(item)} className="p-1.5 text-gray-500 hover:text-brand rounded-lg"><Edit2 size={16} /></button>
+                    <button onClick={() => handleOpenEditModal(item)} className="p-1.5 transition-transform hover:scale-110 active:scale-95" style={{ color: brandColor }}><Edit2 size={16} /></button>
                     <button onClick={() => { setItemToDelete(item); setIsDeleteModalOpen(true); }} className="p-1.5 text-gray-500 hover:text-red-600 rounded-lg"><Trash2 size={16} /></button>
                 </div>
             )

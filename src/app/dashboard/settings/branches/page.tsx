@@ -125,7 +125,11 @@ export default function BranchesPage() {
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">{branch.name}</h3>
               <div className="flex gap-1">
-                <button onClick={() => openEdit(branch)} className="p-2 text-gray-400 dark:text-gray-400 hover:text-brand dark:hover:text-emerald-400 transition-colors">
+                <button 
+                  onClick={() => openEdit(branch)} 
+                  className="p-2 transition-transform hover:scale-110 active:scale-95"
+                  style={{ color: brandColor }}
+                >
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button onClick={() => confirmDelete(branch.id)} className="p-2 text-gray-400 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">

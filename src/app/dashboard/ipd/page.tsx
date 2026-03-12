@@ -22,6 +22,7 @@ import { useBranding } from '@/contexts/branding-context';
 import { cn } from '@/lib/utils';
 import { WardManager } from './components/WardManager';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { useAuthMe, useBranches } from '@/hooks/use-global-data';
 import { Modal, AlertModal } from '@/components/ui/modal';
 import { BrandButton } from '@/components/ui/brand-button';
 import { BrandInput } from '@/components/ui/brand-input';
@@ -34,7 +35,12 @@ export default function IpdPage() {
   const [wards, setWards] = useState<Ward[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeWardId, setActiveWardId] = useState<string | null>(null);
-  const { brandColor } = useBranding();
+  const { brandColor, setBranchName } = useBranding();
+  
+  // Branch Filter
+  const { data: currentUserByHook } = useAuthMe();
+  const { data: serverBranches = [] } = useBranches();
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   
   // Modals / Selection states
   const [isWardSettingsOpen, setIsWardSettingsOpen] = useState(false);
@@ -90,17 +96,23 @@ export default function IpdPage() {
 
   useEffect(() => {
     const loadInitialData = async () => {
-        let currentUser = authService.getUser();
-        if (!currentUser?.branchId) {
+        let currentUser = authService.getUser() || currentUserByHook;
+        if (!currentUser?.branchId && !currentUserByHook) {
             currentUser = await authService.me();
         }
         setUser(currentUser);
-        if (currentUser?.branchId) {
-          loadWards(currentUser.branchId);
+        if (currentUser?.branchId && !selectedBranchId) {
+          setSelectedBranchId(currentUser.branchId);
         }
     };
     loadInitialData();
-  }, [loadWards]);
+  }, [loadWards, currentUserByHook]);
+
+  useEffect(() => {
+    if (selectedBranchId) {
+      loadWards(selectedBranchId);
+    }
+  }, [selectedBranchId, loadWards]);
 
   useEffect(() => {
     if (selectedCage) {
@@ -146,7 +158,7 @@ export default function IpdPage() {
       setOwnerPets([]);
       setSelectedPetIds([]);
       setAdmissionForm({ notes: '', isBoarding: true, dailyPrice: 0, estimatedDays: 1 });
-      loadWards(user.branchId);
+      loadWards(selectedBranchId);
     } catch (error: any) {
       alert(error.message || 'การแอดมิทล้มเหลว');
     } finally {
@@ -166,7 +178,7 @@ export default function IpdPage() {
       } as any);
       setIsEditingAdmission(false);
       setSelectedAdmission(null);
-      loadWards(user.branchId);
+      loadWards(selectedBranchId);
     } catch (error: any) {
       alert(error.message || 'การแก้ไขล้มเหลว');
     } finally {
@@ -183,7 +195,7 @@ export default function IpdPage() {
         try {
           await ipdService.deleteAdmission(admissionId);
           setSelectedAdmission(null);
-          if (user?.branchId) loadWards(user.branchId);
+          if (selectedBranchId) loadWards(selectedBranchId);
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
         } catch (error: any) {
           alert(error.message || 'ลบข้อมูลล้มเหลว');
@@ -203,7 +215,7 @@ export default function IpdPage() {
         try {
           await ipdService.discharge(admissionId);
           setSelectedAdmission(null);
-          loadWards(user.branchId);
+          loadWards(selectedBranchId);
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
           console.error('Discharge failed', error);
@@ -219,7 +231,7 @@ export default function IpdPage() {
       await ipdService.transfer(admissionId, newCageId);
       setIsTransferring(false);
       setSelectedAdmission(null);
-      loadWards(user.branchId);
+      loadWards(selectedBranchId);
     } catch (error: any) {
       alert(error.message || 'การย้ายกรงล้มเหลว');
     }
@@ -228,7 +240,7 @@ export default function IpdPage() {
   const searchCustomers = async (query: string) => {
     setIsSearchingCustomers(true);
     try {
-        const res = await customerService.getCustomers(1, 20, query, user?.branchId);
+        const res = await customerService.getCustomers(1, 20, query, selectedBranchId);
         const data = Array.isArray(res) ? res : (res.data || []);
         const formatted = data.map((c: Customer) => ({
           id: c.id,
@@ -290,16 +302,31 @@ export default function IpdPage() {
         </div>
         
         <div className="flex items-center gap-2">
-           <BrandButton 
-            variant="outline"
-            onClick={() => setIsWardSettingsOpen(true)}
-            className="flex items-center gap-2 rounded-xl"
-          >
-            <Settings size={18} />
-            <span>ตั้งค่ากรงและห้อง</span>
-          </BrandButton>
-        </div>
-      </div>
+           {serverBranches.length > 0 && (
+             <div className="w-64">
+               <SearchableSelect
+                 options={serverBranches}
+                 value={selectedBranchId}
+                 onChange={(val) => {
+                   setSelectedBranchId(val);
+                   setActiveWardId(null);
+                   const branch = serverBranches.find((b: any) => b.id === val);
+                   setBranchName(branch?.name || null);
+                 }}
+                 placeholder="เลือกสาขา"
+               />
+             </div>
+           )}
+            <BrandButton 
+             variant="outline"
+             onClick={() => setIsWardSettingsOpen(true)}
+             className="flex items-center gap-2 rounded-xl"
+           >
+             <Settings size={18} />
+             <span>ตั้งค่ากรงและห้อง</span>
+           </BrandButton>
+         </div>
+       </div>
 
       {/* Ward Selector (Rooms) */}
       <div className="bg-gray-100/50 dark:bg-gray-800/50 p-1.5 rounded-2xl inline-flex flex-wrap items-center gap-1.5 border border-gray-200 dark:border-gray-700">
@@ -479,8 +506,8 @@ export default function IpdPage() {
           </div>
           <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50 dark:bg-gray-900/20">
              <WardManager 
-                branchId={user?.branchId} 
-                onUpdate={() => user?.branchId && loadWards(user.branchId)} 
+                branchId={selectedBranchId} 
+                onUpdate={() => selectedBranchId && loadWards(selectedBranchId)} 
              />
           </div>
           <div className="p-4 border-t border-gray-100 dark:border-gray-700 text-center">

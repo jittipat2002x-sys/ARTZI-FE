@@ -10,24 +10,19 @@ import {
   Clock,
   Dog,
   User,
-  History,
-  Pill,
-  Syringe,
-  Stethoscope,
-  Activity,
-  FileText,
-  AlertCircle,
-  Printer,
-  Receipt,
-  Box,
-  FlaskConical,
-  FileDown
+  History, Activity, Stethoscope, Syringe, FileText, Pill,
+  FlaskConical, FileDown, Box, Filter, Printer, MoreVertical,
+  AlertTriangle, AlertCircle, Receipt, ShoppingCart, CheckCircle2, Search, X, FileUp, Trash2, Edit3
 } from 'lucide-react';
 import { Pagination } from '@/components/ui/pagination';
 import { PrintInvoiceModal } from '../customers/components/PrintInvoiceModal';
 import { PrintAppointmentModal } from '../customers/components/PrintAppointmentModal';
 import { PrintLabelModal } from '../customers/components/PrintLabelModal';
 import { BrandInput } from '@/components/ui/brand-input';
+import { ConsentSignModal } from './components/ConsentSignModal';
+import { PetConsentHistory } from './components/PetConsentHistory';
+import { VisitPanel } from '../customers/components/VisitPanel';
+import { cn } from '@/lib/utils';
 
 export default function MedicalHistoryPage() {
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -38,6 +33,7 @@ export default function MedicalHistoryPage() {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [search, setSearch] = useState<string>('');
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
+  const [resumingVisitId, setResumingVisitId] = useState<string | null>(null);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -49,6 +45,10 @@ export default function MedicalHistoryPage() {
   const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
   const [isInvoicePrintOpen, setIsInvoicePrintOpen] = useState(false);
   const [isApptPrintOpen, setIsApptPrintOpen] = useState(false);
+
+  // Consent states
+  const [consentSignData, setConsentSignData] = useState<{ pet: any; customer: any; medicalRecordId?: string } | null>(null);
+
 
   const loadVisits = async () => {
     setLoading(true);
@@ -101,6 +101,11 @@ export default function MedicalHistoryPage() {
               {visitDateObj.toLocaleDateString('th-TH', { 
                  year: 'numeric', month: '2-digit', day: '2-digit'
               })}
+              {visit.status === 'DRAFT' && (
+                <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full border border-amber-200 animate-pulse">
+                  รอตรวจรักษา
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Clock size={14} className="text-gray-400" />
@@ -149,32 +154,77 @@ export default function MedicalHistoryPage() {
     {
       header: 'จัดการ',
       cell: (visit) => (
-        <button
-          onClick={() => setExpandedVisitId(expandedVisitId === visit.id ? null : visit.id)}
-          className="flex items-center gap-1.5 p-1.5 px-3 rounded-lg transition-all border font-bold text-xs hover:opacity-80"
-          style={{ 
-            color: brandColor, 
-            borderColor: `${brandColor}30`,
-            backgroundColor: expandedVisitId === visit.id ? `${brandColor}15` : 'transparent'
-          }}
-          title={expandedVisitId === visit.id ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียดการรักษา'}
-        >
-          {expandedVisitId === visit.id ? (
-            <>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setResumingVisitId(null);
+              setExpandedVisitId(expandedVisitId === visit.id ? null : visit.id);
+            }}
+            className="flex items-center gap-1.5 p-1.5 px-3 rounded-lg transition-all border font-bold text-xs hover:opacity-80"
+            style={{ 
+              color: brandColor, 
+              borderColor: `${brandColor}30`,
+              backgroundColor: (expandedVisitId === visit.id && !resumingVisitId) ? `${brandColor}15` : 'transparent'
+            }}
+            title={expandedVisitId === visit.id && !resumingVisitId ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียดการรักษา'}
+          >
+            {expandedVisitId === visit.id && !resumingVisitId ? (
               <span>ซ่อนรายละเอียด</span>
-            </>
-          ) : (
-            <>
-              <History size={14} />
-              <span>ดูรายละเอียด</span>
-            </>
+            ) : (
+              <>
+                <History size={14} />
+                <span>ดูรายละเอียด</span>
+              </>
+            )}
+          </button>
+          
+          {visit.status === 'DRAFT' && (
+            <button
+              onClick={() => {
+                if (resumingVisitId === visit.id) {
+                  setResumingVisitId(null);
+                  setExpandedVisitId(null);
+                } else {
+                  setResumingVisitId(visit.id);
+                  setExpandedVisitId(visit.id);
+                }
+              }}
+              className={cn(
+                "flex items-center gap-1.5 p-1.5 px-3 rounded-lg transition-all border font-bold text-xs",
+                resumingVisitId === visit.id 
+                  ? "bg-amber-100 text-amber-700 border-amber-300" 
+                  : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+              )}
+              style={resumingVisitId === visit.id ? {} : { color: brandColor, borderColor: brandColor + '30', backgroundColor: brandColor + '08' }}
+              title="กรอกข้อมูลต่อ"
+            >
+              <Edit3 size={14} />
+              <span>{resumingVisitId === visit.id ? 'กำลังกรอก' : 'กรอกต่อ'}</span>
+            </button>
           )}
-        </button>
+        </div>
       )
     }
   ];
 
   const renderExpandedRecord = (visit: Visit) => {
+    if (resumingVisitId === visit.id) {
+      return (
+        <div className="bg-white dark:bg-gray-900 mx-6 mb-6 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <VisitPanel
+            customer={visit.customer}
+            initialVisit={visit}
+            isInline={true}
+            onClose={() => {
+              setResumingVisitId(null);
+              setExpandedVisitId(null);
+              loadVisits();
+            }}
+          />
+        </div>
+      );
+    }
+
     if (!visit.medicalRecords || visit.medicalRecords.length === 0) {
       return (
         <div className="p-6 text-center text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-xl my-4 mx-6">
@@ -245,8 +295,41 @@ export default function MedicalHistoryPage() {
         
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {visit.medicalRecords.map((record) => (
-            <div key={record.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-              <div className="flex justify-between items-start mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+            <div key={record.id} className="p-5 border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-800 shadow-sm">
+              {/* Consent Warning Alert */}
+              {(() => {
+                const needsConsent = record.isSurgery || record.medications?.some((m: any) => m.requiresConsent);
+                const hasConsent = record.signedConsentForms && record.signedConsentForms.length > 0;
+                
+                if (needsConsent && !hasConsent) {
+                  return (
+                    <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl flex items-start gap-3 animate-pulse">
+                      <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-lg">
+                        <AlertTriangle className="text-red-600 dark:text-red-400" size={20} />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-red-800 dark:text-red-200">ยังไม่ได้เซ็นใบยินยอม!</h4>
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
+                          การรักษามีรายการที่ต้องได้รับการยินยอมจากเจ้าของสัตว์ (เช่น การผ่าตัด/วางยาสลบ)
+                        </p>
+                        <button 
+                          onClick={() => setConsentSignData({ 
+                            pet: record.pet, 
+                            customer: visit.customer,
+                            medicalRecordId: record.id 
+                          })}
+                          className="mt-2 text-xs font-bold text-red-700 dark:text-red-300 underline hover:no-underline"
+                        >
+                          ให้ลูกค้าเซ็นตอนนี้ -&gt;
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              <div className="flex justify-between items-start mb-6 border-b border-gray-50 dark:border-gray-900 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold" style={{ backgroundColor: brandColor + '15', color: brandColor }}>
                     <Dog size={20} />
@@ -256,7 +339,14 @@ export default function MedicalHistoryPage() {
                     <p className="text-xs text-gray-500">{record.pet?.species} {record.pet?.breed ? `• ${record.pet.breed}` : ''}</p>
                   </div>
                 </div>
-                <div className="text-right flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-2">
+                  <button 
+                    onClick={() => setConsentSignData({ pet: record.pet, customer: visit.customer, medicalRecordId: record.id })}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold border transition-colors bg-white hover:bg-brand/5 border-brand/20 text-brand"
+                  >
+                    <FileText size={10} /> เซ็นใบยินยอมใหม่
+                  </button>
+                  <div className="flex flex-col items-end gap-1">
                   {(record as any).weightAtVisit > 0 && (
                     <span 
                       className="text-xs font-medium px-2 py-0.5 rounded-md border flex items-center gap-1"
@@ -281,6 +371,7 @@ export default function MedicalHistoryPage() {
                       อุณหภูมิ: {(record as any).temperature} °C
                     </span>
                   )}
+                  </div>
                 </div>
               </div>
 
@@ -429,6 +520,8 @@ export default function MedicalHistoryPage() {
                     </p>
                   </div>
                 )}
+                
+                <PetConsentHistory petId={record.petId} />
               </div>
             </div>
           ))}
@@ -577,6 +670,20 @@ export default function MedicalHistoryPage() {
             />
           )}
         </>
+      )}
+
+      {/* Consent Sign Modal */}
+      {consentSignData && (
+        <ConsentSignModal 
+          isOpen={!!consentSignData}
+          onClose={() => setConsentSignData(null)}
+          pet={consentSignData.pet}
+          customer={consentSignData.customer}
+          medicalRecordId={consentSignData.medicalRecordId}
+          onSuccess={() => {
+            // Optional: refresh or show notification
+          }}
+        />
       )}
     </div>
   );

@@ -2,9 +2,10 @@
 
 import React from 'react';
 import { useBranding } from '@/contexts/branding-context';
-import { CheckCircle2, Printer, Receipt, Calendar, X } from 'lucide-react';
 import { BrandButton } from '@/components/ui/brand-button';
 import { Modal } from '@/components/ui/modal';
+import { ConsentSignModal } from '../../medical/components/ConsentSignModal';
+import { CheckCircle2, Printer, Receipt, Calendar, X, FileText } from 'lucide-react';
 
 interface VisitSuccessModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export function VisitSuccessModal({
   onPrintAppointment
 }: VisitSuccessModalProps) {
   const { brandColor } = useBranding();
+  const [consentSignData, setConsentSignData] = React.useState<{ pet: any; customer: any; medicalRecordId?: string } | null>(null);
 
   if (!isOpen || !visitData) return null;
 
@@ -67,7 +69,10 @@ export function VisitSuccessModal({
     });
   }
 
+  const isDraft = actualData.status === 'DRAFT';
+
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="sm:max-w-lg" wrapperClassName="!z-[100]">
       <div className="bg-white dark:bg-gray-800 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
         <div className="sm:flex sm:items-start">
@@ -76,69 +81,92 @@ export function VisitSuccessModal({
           </div>
           <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
             <h3 className="text-base font-semibold leading-6 text-gray-900 dark:text-white mb-2" id="modal-title">
-              บันทึกสำเร็จ!
+              {isDraft ? 'บันทึกร่างสำเร็จ!' : 'บันทึกสำเร็จ!'}
             </h3>
             <div className="mt-2 mb-4">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                ทำการบันทึกข้อมูลการเข้ารักษาของ {customerName} เรียบร้อยแล้ว
+                {isDraft 
+                  ? `ทำการบันทึกร่างข้อมูลการเข้ารักษาของ ${customerName} เรียบร้อยแล้ว คุณสามารถกลับมาทำรายการต่อได้ที่หน้าประวัติการรักษา`
+                  : `ทำการบันทึกข้อมูลการเข้ารักษาของ ${customerName} เรียบร้อยแล้ว`}
               </p>
             </div>
             
-            <div className="grid grid-cols-1 gap-3 mt-4">
-              {hasLabels && (
-                <button
-                  onClick={onPrintLabels}
-                  className="flex items-center justify-between p-3 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border border-blue-100 dark:border-blue-800 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-500 text-white shadow-sm">
-                      <Printer size={18} />
+            {!isDraft && (
+              <div className="grid grid-cols-1 gap-3 mt-4">
+                {hasLabels && (
+                  <button
+                    onClick={onPrintLabels}
+                    className="flex items-center justify-between p-3 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border border-blue-100 dark:border-blue-800 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-500 text-white shadow-sm">
+                        <Printer size={18} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-blue-900 dark:text-blue-100">พิมพ์ฉลากยา</div>
+                        <div className="text-[10px] text-blue-600/70">สำหรับสัตว์เลี้ยงในรอบนี้</div>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <div className="text-sm font-bold text-blue-900 dark:text-blue-100">พิมพ์ฉลากยา</div>
-                      <div className="text-[10px] text-blue-600/70">สำหรับสัตว์เลี้ยงในรอบนี้</div>
-                    </div>
-                  </div>
-                  <div className="text-blue-400 group-hover:translate-x-1 transition-transform">→</div>
-                </button>
-              )}
+                    <div className="text-blue-400 group-hover:translate-x-1 transition-transform">→</div>
+                  </button>
+                )}
 
-              {hasInvoice && (
-                <button
-                  onClick={onPrintInvoice}
-                  className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-emerald-500 text-white shadow-sm">
-                      <Receipt size={18} />
+                {hasInvoice && (
+                  <button
+                    onClick={onPrintInvoice}
+                    className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-emerald-500 text-white shadow-sm">
+                        <Receipt size={18} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-emerald-900 dark:text-emerald-100">พิมพ์ใบเสร็จรับเงิน</div>
+                        <div className="text-[10px] text-emerald-600/70">สรุปค่าใช้จ่ายทั้งหมด</div>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <div className="text-sm font-bold text-emerald-900 dark:text-emerald-100">พิมพ์ใบเสร็จรับเงิน</div>
-                      <div className="text-[10px] text-emerald-600/70">สรุปค่าใช้จ่ายทั้งหมด</div>
-                    </div>
-                  </div>
-                  <div className="text-emerald-400 group-hover:translate-x-1 transition-transform">→</div>
-                </button>
-              )}
+                    <div className="text-emerald-400 group-hover:translate-x-1 transition-transform">→</div>
+                  </button>
+                )}
 
-              {appointmentsData.length > 0 && (
-                <button
-                  onClick={onPrintAppointment}
-                  className="flex items-center justify-between p-3 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 border border-orange-100 dark:border-orange-800 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-orange-500 text-white shadow-sm">
-                      <Calendar size={18} />
+                {appointmentsData.length > 0 && (
+                  <button
+                    onClick={onPrintAppointment}
+                    className="flex items-center justify-between p-3 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 border border-orange-100 dark:border-orange-800 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-orange-500 text-white shadow-sm">
+                        <Calendar size={18} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-orange-900 dark:text-orange-100">พิมพ์ใบนัดหมายรวม</div>
+                        <div className="text-[10px] text-orange-600/70">ใบนัดสำหรับสัตว์เลี้ยงทุกตัวในรอบนี้</div>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <div className="text-sm font-bold text-orange-900 dark:text-orange-100">พิมพ์ใบนัดหมายรวม</div>
-                      <div className="text-[10px] text-orange-600/70">ใบนัดสำหรับสัตว์เลี้ยงทุกตัวในรอบนี้</div>
+                    <div className="text-orange-400 group-hover:translate-x-1 transition-transform">→</div>
+                  </button>
+                )}
+
+                {medicalRecords.map((record: any) => (
+                  <button
+                    key={`consent-${record.id}`}
+                    onClick={() => setConsentSignData({ pet: record.pet, customer: actualData.customer || { firstName: customerName.split(' ')[0], lastName: customerName.split(' ')[1] }, medicalRecordId: record.id })}
+                    className="flex items-center justify-between p-3 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 border border-purple-100 dark:border-purple-800 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-500 text-white shadow-sm">
+                        <FileText size={18} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-purple-900 dark:text-purple-100">เซ็นใบยินยอม ({record.pet?.name})</div>
+                        <div className="text-[10px] text-purple-600/70">สำหรับ {record.pet?.name} ในรอบนี้</div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-orange-400 group-hover:translate-x-1 transition-transform">→</div>
-                </button>
-              )}
-            </div>
+                    <div className="text-purple-400 group-hover:translate-x-1 transition-transform">→</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -152,5 +180,16 @@ export function VisitSuccessModal({
         </button>
       </div>
     </Modal>
+    
+    {consentSignData && (
+      <ConsentSignModal 
+        isOpen={!!consentSignData}
+        onClose={() => setConsentSignData(null)}
+        pet={consentSignData.pet}
+        customer={consentSignData.customer}
+        medicalRecordId={consentSignData.medicalRecordId}
+      />
+    )}
+    </>
   );
 }

@@ -16,7 +16,7 @@ import { InventoryModal } from './inventory-modal';
 import { DataTable, Column } from '@/components/ui/data-table';
 
 export default function InventoryPage() {
-  const { brandColor } = useBranding();
+  const { brandColor, setBranchName } = useBranding();
   const [inventories, setInventories] = useState<InventoryItem[]>([]);
   const [branchId, setBranchId] = useState<string>('');
   const [type, setType] = useState<string>('');
@@ -277,10 +277,8 @@ export default function InventoryPage() {
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => handleEdit(item)}
-            className="p-1.5 text-gray-500 rounded-lg transition-colors"
-            style={{ '--hover-bg': brandColor + '15', '--hover-text': brandColor } as any}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = brandColor + '15'; e.currentTarget.style.color = brandColor; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = ''; }}
+            className="p-1.5 transition-transform hover:scale-110 active:scale-95"
+            style={{ color: brandColor }}
             title="แก้ไข"
           >
             <Edit2 size={16} />
@@ -335,10 +333,12 @@ export default function InventoryPage() {
               ...branches
             ]}
             value={branchId}
-            onChange={(val) => {
-              setBranchId(val);
-              setCurrentPage(1);
-            }}
+                onChange={(val) => {
+                  setBranchId(val || '');
+                  setCurrentPage(1);
+                  const branch = branches.find((b: any) => b.id === val);
+                  setBranchName(branch?.name || null);
+                }}
             placeholder="เลือกสาขา"
             icon={Building2}
           />

@@ -16,6 +16,7 @@ import {
   Package, DollarSign, BarChart3, TrendingUp, AlertTriangle, 
   ArrowRight, Download, Calendar, Filter, PieChart as PieIcon
 } from 'lucide-react';
+import { ThaiDateInput } from '@/components/ui/thai-date-input';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -136,18 +137,16 @@ export default function ReportsPage() {
             <div className="flex justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
                <div className="flex gap-4 items-center">
                  <Calendar size={18} className="text-gray-400" />
-                 <input 
-                   type="date" 
-                   value={startDate} 
-                   onChange={(e) => setStartDate(e.target.value)}
-                   className="text-sm rounded-lg border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 outline-none focus:ring-2 focus:ring-brand/20"
+                 <ThaiDateInput 
+                    value={startDate} 
+                    onChange={(val) => setStartDate(val)}
+                    className="min-w-[150px]"
                  />
                  <span className="text-gray-400">ถึง</span>
-                 <input 
-                   type="date" 
-                   value={endDate} 
-                   onChange={(e) => setEndDate(e.target.value)}
-                   className="text-sm rounded-lg border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 outline-none focus:ring-2 focus:ring-brand/20"
+                 <ThaiDateInput 
+                    value={endDate} 
+                    onChange={(val) => setEndDate(val)}
+                    className="min-w-[150px]"
                  />
                </div>
                <button className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all">

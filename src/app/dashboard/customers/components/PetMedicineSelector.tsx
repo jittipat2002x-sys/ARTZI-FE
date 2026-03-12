@@ -23,6 +23,7 @@ export interface SelectedMedication {
   usageEvening?: boolean;
   usageNight?: boolean;
   usageRemark?: string;
+  requiresConsent?: boolean;
 }
 
 interface PetMedicineSelectorProps {
@@ -149,7 +150,8 @@ export function PetMedicineSelector({ selectedItems, onChange, petName, customer
       usageNoon: item.usageNoon || false,
       usageEvening: item.usageEvening || false,
       usageNight: item.usageNight || false,
-      usageRemark: item.usageRemark || ''
+      usageRemark: item.usageRemark || '',
+      requiresConsent: item.requiresConsent || false
     };
 
     onChange([...selectedItems, newItem]);
@@ -199,7 +201,12 @@ export function PetMedicineSelector({ selectedItems, onChange, petName, customer
                   onClick={() => addItem(item)}
                 >
                   <div>
-                    <span className="text-sm font-medium block">{item.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium block">{item.name}</span>
+                      {item.requiresConsent && (
+                        <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded uppercase">Consent Required</span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-500">ประเภท: {item.type} | คงเหลือ: {item.quantity} {item.unit}</span>
                   </div>
                   <span className="text-sm font-semibold" style={{ color: brandColor }}>฿{item.price}</span>
@@ -227,7 +234,16 @@ export function PetMedicineSelector({ selectedItems, onChange, petName, customer
             <tbody>
               {selectedItems.map((item, idx) => (
                 <tr key={idx} className="border-t border-gray-100 dark:border-gray-700">
-                  <td className="px-3 py-2 font-medium">{item.inventoryName}</td>
+                  <td className="px-3 py-2 font-medium">
+                    <div className="flex flex-col">
+                      <span>{item.inventoryName}</span>
+                      {item.requiresConsent && (
+                        <span className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-0.5">
+                          ⚠️ ต้องการใบยินยอม
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-3 py-2">
                     <BrandInput
                       type="number"
@@ -247,7 +263,10 @@ export function PetMedicineSelector({ selectedItems, onChange, petName, customer
                   </td>
                   <td className="px-3 py-2">
                     <div 
-                      className="cursor-pointer group flex items-center justify-between gap-2 p-2 border border-gray-100 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-700 transition-colors bg-white dark:bg-gray-900"
+                      className="cursor-pointer group flex items-center justify-between gap-2 p-2 border border-gray-100 dark:border-gray-700 rounded-lg transition-colors bg-white dark:bg-gray-900"
+                      style={{ 
+                        borderColor: brandColor + '20'
+                      }}
                       onClick={() => {
                         setActiveUsageIdx(idx);
                         setActiveUsageName(item.inventoryName);
@@ -257,7 +276,11 @@ export function PetMedicineSelector({ selectedItems, onChange, petName, customer
                       <span className={`text-xs ${item.usageInstructions ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 italic'}`}>
                         {item.usageInstructions || 'คลิกเพื่อระบุวิธีใช้...'}
                       </span>
-                      <PencilLine size={14} className="text-gray-400 group-hover:text-blue-500" />
+                      <PencilLine 
+                        size={14} 
+                        className="transition-colors" 
+                        style={{ color: brandColor }}
+                      />
                     </div>
                   </td>
                   <td className="px-3 py-2">

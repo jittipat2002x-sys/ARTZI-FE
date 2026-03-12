@@ -8,6 +8,7 @@ import { PrintLabelModal } from './PrintLabelModal';
 import { PrintInvoiceModal } from './PrintInvoiceModal';
 import { PrintAppointmentModal } from './PrintAppointmentModal';
 import { Receipt, Calendar as CalendarIcon, FlaskConical, FileDown } from 'lucide-react';
+import { PetConsentHistory } from '../../medical/components/PetConsentHistory';
 
 interface PetOpdHistoryProps {
   petId: string;
@@ -166,7 +167,7 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
                   }}
                 >
                   <span className="text-gray-500 text-[10px] font-bold uppercase mb-1 flex items-center gap-1 (not-italic)">
-                    <PencilLine size={10} /> อธิบายเพิ่มเติม/Additional Notes:
+                    <PencilLine size={10} style={{ color: brandColor }} /> อธิบายเพิ่มเติม/Additional Notes:
                   </span>
                   <p className="text-sm">{record.notes}</p>
                 </div>
@@ -306,6 +307,8 @@ export function PetOpdHistory({ petId }: PetOpdHistoryProps) {
               )}
             </div>
           ))}
+
+          <PetConsentHistory petId={petId} />
         </div>
       )}
 

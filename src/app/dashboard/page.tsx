@@ -49,7 +49,15 @@ export default function DashboardPage() {
   }, [router]);
 
   if (!user) {
-    return <div className="min-h-screen flex justify-center items-center">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col justify-center items-center gap-4">
+        <div className="w-16 h-16 rounded-full border-4 border-gray-200 dark:border-gray-800 border-t-brand animate-spin" style={{ borderTopColor: brandColor }}></div>
+        <div className="flex flex-col items-center animate-pulse">
+           <div className="h-4 w-32 bg-gray-200 dark:bg-gray-800 rounded-full mb-2"></div>
+           <div className="h-3 w-48 bg-gray-100 dark:bg-gray-900 rounded-full opacity-60"></div>
+        </div>
+      </div>
+    );
   }
 
   // Formatting helpers
@@ -94,31 +102,82 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-none">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-gray-500 pl-2">ตั้งแต่:</span>
-            <input
-              type="date"
+            <ThaiDateInput
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="text-sm border-none bg-gray-50 dark:bg-gray-900 rounded-lg px-2 py-1.5 focus:ring-1 outline-none"
-              style={{ outlineColor: brandColor }}
+              onChange={(val) => setStartDate(val)}
+              className="min-w-[150px]"
             />
           </div>
           <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-gray-500">ถึง:</span>
-            <input
-              type="date"
+            <ThaiDateInput
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="text-sm border-none bg-gray-50 dark:bg-gray-900 rounded-lg px-2 py-1.5 focus:ring-1 outline-none"
-              style={{ outlineColor: brandColor }}
+              onChange={(val) => setEndDate(val)}
+              className="min-w-[150px]"
             />
           </div>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm animate-pulse">
-           กำลังโหลดข้อมูลสรุปแดชบอร์ด...
+        <div className="space-y-6 animate-pulse">
+          {/* Skeletons for Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 h-32 flex flex-col justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-700"></div>
+                  <div className="h-4 w-24 bg-gray-100 dark:bg-gray-700 rounded"></div>
+                </div>
+                <div className="h-8 w-32 bg-gray-100 dark:bg-gray-700 rounded mt-2"></div>
+                <div className="h-3 w-20 bg-gray-50 dark:bg-gray-900 rounded"></div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Chart Skeleton */}
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 lg:col-span-2 h-[380px]">
+              <div className="h-6 w-48 bg-gray-100 dark:bg-gray-700 rounded mb-8"></div>
+              <div className="w-full h-[280px] bg-gray-50 dark:bg-gray-900/50 rounded-xl relative overflow-hidden">
+                <div className="absolute inset-0 flex items-center justify-around px-4">
+                   {[1, 2, 3, 4, 5, 6].map(i => (
+                     <div key={i} className="w-8 bg-gray-100/50 dark:bg-gray-800/50 rounded-t" style={{ height: `${20 + Math.random() * 60}%` }}></div>
+                   ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side Skeletons */}
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 h-[210px]">
+                <div className="h-4 w-32 bg-gray-100 dark:bg-gray-700 rounded mb-6"></div>
+                <div className="flex items-end gap-2 h-[120px]">
+                  {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                    <div key={i} className="flex-1 bg-gray-100/40 dark:bg-gray-800/40 rounded-t" style={{ height: `${30 + Math.random() * 60}%` }}></div>
+                   ))}
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
+                <div className="h-4 w-40 bg-gray-100 dark:bg-gray-700 rounded mb-6"></div>
+                <div className="space-y-4">
+                   {[1, 2, 3].map(i => (
+                     <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-50 dark:border-gray-800">
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700"></div>
+                           <div className="space-y-2">
+                             <div className="h-3 w-24 bg-gray-100 dark:bg-gray-700 rounded"></div>
+                             <div className="h-2 w-16 bg-gray-50 dark:bg-gray-800 rounded"></div>
+                           </div>
+                        </div>
+                        <div className="h-4 w-12 bg-gray-100 dark:bg-gray-700 rounded"></div>
+                     </div>
+                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : error ? (
         <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center border border-red-100">

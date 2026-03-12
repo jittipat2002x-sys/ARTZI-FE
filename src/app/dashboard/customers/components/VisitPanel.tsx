@@ -3,13 +3,13 @@ import { Customer } from '@/services/customer.service';
 import { useBranding } from '@/contexts/branding-context';
 import { BrandButton } from '@/components/ui/brand-button';
 import { BrandInput } from '@/components/ui/brand-input';
-import { useCreateVisit } from '../hooks/useVisits';
+import { useCreateVisit, useUpdateVisit } from '../hooks/useVisits';
 import { authService } from '@/services/auth.service';
 import { PetOpdHistory } from './PetOpdHistory';
 import { PetMedicineSelector, SelectedMedication } from './PetMedicineSelector';
 import { ThaiDateInput } from '@/components/ui/thai-date-input';
 import { BrandTextarea } from '@/components/ui/brand-textarea';
-import { Dog, ShoppingCart, Calendar, CheckCircle2, Printer, Receipt, Box, Search, X, FlaskConical, FileUp, Trash2 } from 'lucide-react';
+import { Dog, ShoppingCart, Calendar, CheckCircle2, Printer, Receipt, Box, Search, X, FlaskConical, FileUp, Trash2, Activity, FileText, AlertTriangle } from 'lucide-react';
 import { Modal, AlertModal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { VisitSuccessModal } from './VisitSuccessModal';
@@ -20,16 +20,20 @@ import { appointmentService, Appointment } from '@/services/appointment.service'
 import { visitService, Visit } from '@/services/visit.service';
 import { ipdService, Ward, Cage } from '@/services/ipd.service';
 import { CageGridSelector } from '@/components/ipd/CageGridSelector';
+import { ConsentSignModal } from '../../medical/components/ConsentSignModal';
 
 interface VisitPanelProps {
   customer: Customer;
   linkedAppointments?: Appointment[];
+  initialVisit?: Visit;
   onClose: () => void;
+  isInline?: boolean;
 }
 
-export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanelProps) {
+export function VisitPanel({ customer, linkedAppointments, initialVisit, onClose, isInline }: VisitPanelProps) {
   const { brandColor } = useBranding();
   const createVisitMutation = useCreateVisit();
+  const updateVisitMutation = useUpdateVisit();
   const user = authService.getUser();
 
   const branchId = user?.branches?.[0]?.branchId;
@@ -40,6 +44,55 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
       ipdService.getWards(branchId).then(setWards).catch(console.error);
     }
   }, [branchId]);
+
+  // Handle initialVisit population
+  React.useEffect(() => {
+    if (initialVisit) {
+      setSelectedPets(initialVisit.medicalRecords.map(r => r.petId));
+      
+      const records: Record<string, any> = {};
+      initialVisit.medicalRecords.forEach(record => {
+        records[record.petId] = {
+          id: record.id,
+          petId: record.petId,
+          vetId: record.vetId || user?.id || '',
+          weightAtVisit: (record as any).weightAtVisit || 0,
+          temperature: (record as any).temperature || 0,
+          isSurgery: record.isSurgery || false,
+          symptoms: record.symptoms || '',
+          diagnosis: record.diagnosis || '',
+          treatment: record.treatment || '',
+          notes: record.notes || '',
+          medications: record.medications.map((m: any) => ({
+            inventoryId: m.inventoryId,
+            quantity: m.quantity,
+            unitPrice: m.unitPrice,
+            usageInstructions: (m as any).dosage || ''
+          })),
+          labTests: record.labTests.map(l => ({
+            testType: l.testType,
+            result: l.result,
+            notes: l.notes,
+            files: [] // Existing files are already URLs, usually not re-uploaded but here we handle new ones
+          })),
+          pendingConsents: []
+        };
+      });
+      setPetRecords(records);
+
+      if (initialVisit.invoice?.items) {
+        const general = initialVisit.invoice.items
+          .filter((item: any) => !item.medicalRecordId)
+          .map((item: any) => ({
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice
+          }));
+        setGeneralItems(general);
+      }
+    }
+  }, [initialVisit, user?.id]);
   
   const [selectedPets, setSelectedPets] = React.useState<string[]>(() => {
     if (linkedAppointments && linkedAppointments.length > 0) {
@@ -69,7 +122,8 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
             appointmentIds: [app.id],
             ipdCageId: '',
             ipdNotes: '',
-            labTests: []
+            labTests: [],
+            pendingConsents: []
           };
         } else {
           // If multiple appointments for the same pet in the linked group
@@ -108,7 +162,9 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
     type: 'info',
   });
   
+  const [pendingStatus, setPendingStatus] = useState<'DRAFT' | 'COMPLETED'>('COMPLETED');
   const [cageSelectorPetId, setCageSelectorPetId] = useState<string | null>(null);
+  const [consentSignData, setConsentSignData] = useState<{ pet: any; customer: any; medicalRecordId?: string } | null>(null);
   
   // Calculate total
   const petMedsTotal = Object.values(petRecords).reduce((acc, record) => {
@@ -143,6 +199,7 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           vetId: user?.id || '',
           weightAtVisit: 0,
           temperature: 0,
+          isSurgery: false,
           symptoms: linkedSymptoms,
           diagnosis: '',
           treatment: '',
@@ -155,6 +212,7 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           ipdCageId: '',
           ipdNotes: '',
           labTests: [],
+          pendingConsents: [],
         }
       }));
     }
@@ -218,7 +276,7 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
     updateLabTest(petId, testIndex, 'files', newFiles);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (status: 'DRAFT' | 'COMPLETED' = 'COMPLETED') => {
     if (selectedPets.length === 0) {
       setAlertConfig({
         isOpen: true,
@@ -228,6 +286,7 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
       });
       return;
     }
+    setPendingStatus(status);
     setIsConfirmSaveOpen(true);
   };
 
@@ -265,6 +324,7 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           appointmentIds,
           nextAppointmentDate: apptDateToSend as any,
           ipdCageId,
+          isSurgery: !!record.isSurgery,
           vetId: record.vetId === 'REPLACE_WITH_USER_ID' || !record.vetId ? (currentUser?.id || '') : record.vetId,
           medications: (record.medications || []).map((med: any) => ({
             inventoryId: med.inventoryId,
@@ -272,11 +332,12 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
             quantity: med.quantity,
             unitPrice: med.unitPrice,
             usageInstructions: med.usageInstructions || ''
-          }))
+          })),
+          pendingConsents: record.pendingConsents || []
         };
       });
       
-      const result = await createVisitMutation.mutateAsync({
+      const payload = {
         customerId: customer.id,
         branchId: currentUser?.branches?.[0]?.branchId || '',
         medicalRecords: recordsToCreate as any,
@@ -287,7 +348,12 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           unitPrice: item.unitPrice
         })),
         discount: 0,
-      });
+        status: pendingStatus
+      };
+
+      const result = initialVisit 
+        ? await updateVisitMutation.mutateAsync({ id: initialVisit.id, data: payload })
+        : await createVisitMutation.mutateAsync(payload);
       
       // Robust extraction of the visit object from potential wrappers or arrays
       const resultObj = result as any;
@@ -329,47 +395,53 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
       setAlertConfig({
         isOpen: true,
         title: 'เกิดข้อผิดพลาด',
-        description: error?.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
+        description: error?.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณอลองใหม่อีกครั้ง',
         type: 'danger'
       });
     }
   };
 
-  return (
-    <>
-      <div className="p-6 bg-white dark:bg-gray-800 rounded-b-xl border-t border-gray-100 dark:border-gray-700 shadow-inner">
+  const panelContent = (
+    <div className={cn(
+      "bg-white dark:bg-gray-800 p-6",
+      !isInline ? "rounded-b-3xl" : "rounded-xl"
+    )}>
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
-          สร้างรายการเข้ารักษาใหม่
+          {initialVisit ? 'แก้ไขร่างการรักษา' : 'สร้างรายการเข้ารักษาใหม่'}
         </h3>
-        <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-600">ปิด</button>
+        <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-600">
+           {isInline ? 'ปิดการแก้ไข' : 'ปิด'}
+        </button>
       </div>
 
-      {/* Select Pets */}
-      <div className="mb-6">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">เลือกสัตว์เลี้ยงที่เข้ารับการรักษา:</label>
-        <div className="flex flex-wrap gap-3">
-          {customer.pets?.map((pet: any) => (
-            <button
-              key={pet.id}
-              onClick={() => handlePetToggle(pet.id!)}
-              className="px-4 py-2 rounded-xl text-sm font-semibold transition-all border flex items-center gap-2"
-              style={selectedPets.includes(pet.id!) ? {
-                backgroundColor: brandColor + '15',
-                borderColor: brandColor,
-                color: brandColor
-              } : {
-                backgroundColor: 'transparent',
-                borderColor: '#e5e7eb',
-                color: '#6b7280'
-              }}
-            >
-              <Dog size={16} /> {pet.name}
-            </button>
-          ))}
-          {!customer.pets?.length && <p className="text-xs text-red-500">ไม่พบสัตว์เลี้ยงสำหรับลูกค้านี้</p>}
+      {/* Select Pets - Only show when creating new visit */}
+      {!initialVisit && (
+        <div className="mb-6">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">เลือกสัตว์เลี้ยงที่เข้ารับการรักษา:</label>
+          <div className="flex flex-wrap gap-3">
+            {customer.pets?.map((pet: any) => (
+              <button
+                key={pet.id}
+                onClick={() => handlePetToggle(pet.id!)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold transition-all border flex items-center gap-2"
+                style={selectedPets.includes(pet.id!) ? {
+                  backgroundColor: brandColor + '15',
+                  borderColor: brandColor,
+                  color: brandColor
+                } : {
+                  backgroundColor: 'transparent',
+                  borderColor: '#e5e7eb',
+                  color: '#6b7280'
+                }}
+              >
+                <Dog size={16} /> {pet.name}
+              </button>
+            ))}
+            {!customer.pets?.length && <p className="text-xs text-red-500">ไม่พบสัตว์เลี้ยงสำหรับลูกค้านี้</p>}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Pet Forms */}
       <div className="space-y-8">
@@ -378,7 +450,9 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           const record = petRecords[petId];
           return (
             <div key={petId} className="p-5 border border-gray-200 dark:border-gray-700 rounded-xl space-y-4 relative">
-              <h4 className="font-bold text-gray-800 dark:text-gray-200" style={{ color: brandColor }}>{pet?.name} <span className="text-xs font-normal text-gray-500 ml-2">({pet?.species})</span></h4>
+              <div className="flex justify-between items-center">
+                <h4 className="font-bold text-gray-800 dark:text-gray-200" style={{ color: brandColor }}>{pet?.name} <span className="text-xs font-normal text-gray-500 ml-2">({pet?.species})</span></h4>
+              </div>
               
               <PetOpdHistory petId={petId} />
 
@@ -395,7 +469,7 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
                   value={record.temperature}
                   onChange={e => updatePetRecord(petId, 'temperature', parseFloat(e.target.value))}
                  />
-              </div>
+               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <BrandTextarea
@@ -464,6 +538,60 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Surgery & Anesthesia Section */}
+              <div 
+                className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl space-y-3 bg-gray-50/50 dark:bg-gray-900/30"
+              >
+                <div className="flex items-center justify-between">
+                  <h5 className="text-sm font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Activity size={14} className="text-red-500 dark:text-red-400" /> การผ่าตัดและวางยาสลบ (Surgery)
+                  </h5>
+                  <div className="flex items-center gap-2">
+                    {record.isSurgery && (
+                      <button 
+                        onClick={() => setConsentSignData({ pet, customer })}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
+                          record.pendingConsents?.length > 0 
+                            ? "bg-green-50 border-green-200 text-green-600 hover:bg-green-100" 
+                            : "bg-white hover:bg-red-50 border-red-200 text-red-600"
+                        )}
+                      >
+                        {record.pendingConsents?.length > 0 ? (
+                          <><CheckCircle2 size={14} /> เซ็นแล้ว ({record.pendingConsents.length})</>
+                        ) : (
+                          <><FileText size={14} /> เซ็นใบยินยอม</>
+                        )}
+                      </button>
+                    )}
+                    <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
+                    <input 
+                      type="checkbox" 
+                      id={`surgery-toggle-${petId}`}
+                      checked={!!record.isSurgery}
+                      onChange={(e) => updatePetRecord(petId, 'isSurgery', e.target.checked)}
+                      className="rounded border-gray-300 text-red-500 focus:ring-red-500 w-4 h-4"
+                      style={{ accentColor: '#ef4444' }}
+                    />
+                    <label htmlFor={`surgery-toggle-${petId}`} className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer">มีการผ่าตัด</label>
+                  </div>
+                </div>
+
+                {record.isSurgery && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
+                    <div className="p-1.5 bg-red-100 dark:bg-red-900/50 rounded-lg text-red-600 dark:text-red-400">
+                      <AlertTriangle size={16} />
+                    </div>
+                    <div className="flex-1">
+                      <h5 className="text-[11px] font-bold text-red-800 dark:text-red-200 uppercase">โปรดเตรียมใบยินยอม!</h5>
+                      <p className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">
+                        การผ่าตัด/วางยาสลบจำเป็นต้องมีการเซ็นใบยินยอมจากเจ้าของสัตว์ก่อนดำเนินการ
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* IPD Admission Section */}
@@ -660,19 +788,37 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
         </div>
       </div>
 
-      <div className="mt-8 flex justify-end gap-3">
-        <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200">
+      <div className="mt-8 flex justify-end gap-3 px-2">
+        <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors">
           ยกเลิก
         </button>
+        <button 
+          onClick={() => handleSubmit('DRAFT')}
+          disabled={createVisitMutation.isPending || selectedPets.length === 0}
+          className="px-4 py-2 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-sm font-bold hover:bg-amber-100 transition-colors disabled:opacity-50"
+        >
+          {createVisitMutation.isPending && pendingStatus === 'DRAFT' ? 'กำลังบันทึกร่าง...' : 'บันทึกร่าง (พักตรวจ)'}
+        </button>
         <BrandButton 
-          onClick={handleSubmit} 
+          onClick={() => handleSubmit('COMPLETED')} 
           disabled={createVisitMutation.isPending || selectedPets.length === 0}
         >
-          {createVisitMutation.isPending ? 'กำลังบันทึก...' : 'บันทึกการเข้ารักษา'}
+          {createVisitMutation.isPending && pendingStatus === 'COMPLETED' ? 'กำลังบันทึก...' : 'บันทึกการเข้ารักษา'}
         </BrandButton>
       </div>
 
     </div>
+  );
+
+  return (
+    <>
+      {isInline ? panelContent : (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+           <div className="w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-gray-800 shadow-2xl relative">
+              {panelContent}
+           </div>
+        </div>
+      )}
 
       {/* Success Modal */}
       {createdVisit && (
@@ -813,6 +959,21 @@ export function VisitPanel({ customer, linkedAppointments, onClose }: VisitPanel
           />
         </div>
       </Modal>
+
+      {consentSignData && (
+        <ConsentSignModal 
+          isOpen={!!consentSignData}
+          onClose={() => setConsentSignData(null)}
+          pet={consentSignData.pet}
+          customer={consentSignData.customer}
+          medicalRecordId={consentSignData.medicalRecordId}
+          onDeferSuccess={(data) => {
+            const petId = consentSignData.pet.id;
+            const currentConsents = petRecords[petId]?.pendingConsents || [];
+            updatePetRecord(petId, 'pendingConsents', [...currentConsents, data]);
+          }}
+        />
+      )}
     </>
   );
 }

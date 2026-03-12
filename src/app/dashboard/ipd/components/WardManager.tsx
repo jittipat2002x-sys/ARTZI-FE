@@ -263,10 +263,11 @@ export function WardManager({ branchId, onUpdate }: WardManagerProps) {
               
               <div className="flex items-center gap-1">
                 <button 
-                    onClick={() => { setEditingWardId(ward.id); setEditingWardName(ward.name); }}
-                    className="p-2 text-gray-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-all"
+                  onClick={() => { setEditingWardId(ward.id); setEditingWardName(ward.name); }}
+                  className="p-2 transition-transform hover:scale-110 active:scale-95"
+                  style={{ color: brandColor }}
                 >
-                    <Edit2 size={16} />
+                  <Edit2 size={16} />
                 </button>
                 <button 
                   onClick={() => handleDeleteWard(ward.id)}
@@ -369,19 +370,20 @@ export function WardManager({ branchId, onUpdate }: WardManagerProps) {
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
                                 <button 
-                                    onClick={() => {
-                                        setEditingCageId(cage.id);
-                                        setEditingCageData({
-                                            name: cage.name,
-                                            type: cage.type || 'STANDARD',
-                                            size: cage.size || 'M',
-                                            defaultPrice: cage.defaultPrice || 0,
-                                            isActive: cage.isActive !== false
-                                        });
-                                    }}
-                                    className="p-2 text-gray-400 hover:text-brand hover:bg-brand/10 rounded-xl transition-all"
+                                  onClick={() => {
+                                    setEditingCageId(cage.id);
+                                    setEditingCageData({
+                                      name: cage.name,
+                                      type: cage.type || 'STANDARD',
+                                      size: cage.size || 'M',
+                                      defaultPrice: cage.defaultPrice || 0,
+                                      isActive: cage.isActive !== false
+                                    });
+                                  }}
+                                  className="p-2 transition-transform hover:scale-110 active:scale-95"
+                                  style={{ color: brandColor }}
                                 >
-                                    <Edit2 size={16} />
+                                  <Edit2 size={16} />
                                 </button>
                                 <button 
                                     onClick={() => handleDeleteCage(cage.id)}

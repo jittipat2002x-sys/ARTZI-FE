@@ -45,7 +45,7 @@ export function Modal({
   if (!mounted || !isOpen) return null;
 
   return createPortal(
-    <div className={cn("fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-0", wrapperClassName)}>
+    <div className={cn("fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-4", wrapperClassName)}>
       <div 
         className="fixed inset-0 bg-gray-500/75 dark:bg-gray-900/80 transition-opacity animate-in fade-in duration-300"
         onClick={onClose}
@@ -53,7 +53,7 @@ export function Modal({
       {/* Modal content */}
       <div
         className={cn(
-          "relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 w-full sm:max-w-lg animate-in fade-in zoom-in-95 duration-300",
+          "relative transform overflow-y-auto max-h-[90vh] rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all w-full sm:max-w-lg animate-in fade-in zoom-in-95 duration-300",
           className
         )}
       >

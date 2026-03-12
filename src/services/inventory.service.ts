@@ -72,6 +72,7 @@ export interface InventoryItem {
     usageEvening?: boolean;
     usageNight?: boolean;
     usageRemark?: string | null;
+    requiresConsent?: boolean;
     createdAt: string;
     updatedAt: string;
 }

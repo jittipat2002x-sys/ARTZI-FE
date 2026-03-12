@@ -467,9 +467,9 @@ export default function AppointmentsPage() {
                 setExpandedVisitAppointmentId(null);
               }
             }}
-            className="rounded-full px-6 shadow-md whitespace-nowrap flex-1 sm:flex-none"
+            className="px-6 py-2.5 shadow-sm hover:shadow-md whitespace-nowrap flex-1 sm:flex-none !rounded-xl"
           >
-            {isCreateFormOpen ? '- ปิดฟอร์ม' : '+ สร้างนัดหมาย'}
+            {isCreateFormOpen ? '- ปิดฟอร์ม' : '+ สร้างนัดหมาย TEST'}
           </BrandButton>
         </div>
       </div>

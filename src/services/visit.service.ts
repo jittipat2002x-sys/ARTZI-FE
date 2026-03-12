@@ -7,6 +7,7 @@ export interface MedicalTreatment {
     unitPrice: number;
     type: string;
     instructions: string;
+    requiresConsent?: boolean;
 }
 
 export interface LabTestFile {
@@ -26,6 +27,9 @@ export interface LabTest {
 export interface MedicalRecord {
     id: string;
     petId: string;
+    weightAtVisit: number;
+    temperature: number;
+    isSurgery: boolean;
     symptoms: string;
     diagnosis: string;
     treatment: string;
@@ -33,8 +37,10 @@ export interface MedicalRecord {
     notes: string;
     medications: MedicalTreatment[];
     labTests: LabTest[];
+    signedConsentForms?: any[];
     pet: any;
     vet: any;
+    vetId?: string;
     admission?: any;
 }
 
@@ -47,6 +53,7 @@ export interface Visit {
     medicalRecords: MedicalRecord[];
     invoice: any;
     appointments?: any[];
+    status: 'DRAFT' | 'COMPLETED';
 }
 
 export interface PaginatedVisits {

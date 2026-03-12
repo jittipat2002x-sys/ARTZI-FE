@@ -68,7 +68,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const queryClient = useQueryClient();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const { logoUrl: brandingLogo, brandColor } = useBranding();
+  const { logoUrl: brandingLogo, brandColor, branchName, tenantName } = useBranding();
   const { data: user } = useAuthMe();
   const { data: menus = [] } = useMenus();
 
@@ -178,7 +178,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
             <div className="flex flex-col min-w-0">
               <h2 className="text-sm font-bold text-gray-900 dark:text-white truncate leading-tight">
-                {user?.branchName || user?.tenantName || 'PetHeart'}
+                {branchName || user?.branchName || tenantName || user?.tenantName || 'PetHeart'}
               </h2>
               <span className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
                 {user?.roleDescription || user?.role?.replace('_', ' ') || 'User'}

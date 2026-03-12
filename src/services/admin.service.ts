@@ -240,7 +240,7 @@ export const brandingService = {
         const res = await fetch(`${API_BASE}/tenants/my/branding`, { headers: getHeaders() });
         return handleResponse(res);
     },
-    async update(data: { brandColor?: string; logoUrl?: string }) {
+    async update(data: { brandColor?: string; brandColorDark?: string; logoUrl?: string }) {
         const res = await fetch(`${API_BASE}/tenants/my/branding`, {
             method: 'PATCH',
             headers: getHeaders(),

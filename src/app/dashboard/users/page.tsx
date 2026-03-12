@@ -268,7 +268,12 @@ export default function UsersPage() {
                    </div>
                  </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                  <button onClick={() => openEdit(user)} className="text-gray-400 dark:text-gray-500 hover:text-brand mr-3 transition-colors">
+                  <button 
+                    onClick={() => openEdit(user)} 
+                    className="mr-3 transition-transform hover:scale-110 active:scale-95"
+                    style={{ color: brandColor }}
+                    title="แก้ไขข้อมูล"
+                  >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button onClick={() => setDeleteUser(user)} className="text-gray-400 dark:text-gray-500 hover:text-red-600 transition-colors">

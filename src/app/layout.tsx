@@ -56,13 +56,16 @@ export default function RootLayout({
             __html: `
               try {
                 const saved = localStorage.getItem('branding');
+                const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                 if (saved) {
                   const data = JSON.parse(saved);
-                  if (data.brandColor) {
-                    document.documentElement.style.setProperty('--color-brand', data.brandColor);
+                  const color = theme === 'dark' ? (data.brandColorDark || data.brandColor) : data.brandColor;
+                  
+                  if (color) {
+                    document.documentElement.style.setProperty('--color-brand', color);
                     
                     // Helper to adjust color for hover
-                    const hex = data.brandColor.replace('#', '');
+                    const hex = color.replace('#', '');
                     const num = parseInt(hex, 16);
                     const amount = -15;
                     const r = Math.min(255, Math.max(0, (num >> 16) + amount));

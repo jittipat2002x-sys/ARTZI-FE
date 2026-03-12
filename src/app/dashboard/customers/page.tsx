@@ -481,7 +481,8 @@ export default function CustomerPage() {
           </button>
           <button
             onClick={() => handleEdit(customer)}
-            className="p-1.5 text-gray-500 hover-brand-action rounded-lg transition-colors"
+            className="p-1.5 transition-transform hover:scale-110 active:scale-95"
+            style={{ color: brandColor }}
             title="แก้ไข"
           >
             <Edit2 size={16} />
